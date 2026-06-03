@@ -1,0 +1,39 @@
+# Virtual environments
+venv/
+.venv/
+env/
+ENV/
+
+# Python compiled cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+
+# Sensitive environment variables & API keys
+.env
+.env.local
+.env.*.local
+backend/.env
+backend/.env.example
+
+# Local generated CSV security logs
+*.csv
+security_logs.csv
+
+# Frontend dependencies & production builds
+frontend/node_modules/
+frontend/dist/
+
+# IDE & OS files
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.swp
+Thumbs.db
+ehthumbs.db
+Desktop.ini

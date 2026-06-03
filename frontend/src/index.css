@@ -1,0 +1,155 @@
+@import "tailwindcss";
+
+@theme {
+  /* ── Clean Professional Color Tokens ── */
+  --color-cyber-bg: #09090b; /* zinc-950 background */
+  --color-cyber-card: rgba(20, 20, 23, 0.7); /* sleek dark card background */
+  --color-cyber-card-border: rgba(63, 63, 70, 0.3); /* thin zinc-700 border */
+  --color-cyber-green: #10b981; /* emerald accent */
+  --color-cyber-green-glow: rgba(16, 185, 129, 0.05);
+  --color-cyber-blue: #3b82f6; /* blue accent */
+  --color-cyber-blue-glow: rgba(59, 130, 246, 0.05);
+  --color-cyber-yellow: #f59e0b; /* amber accent */
+  --color-cyber-yellow-glow: rgba(245, 158, 11, 0.05);
+  --color-cyber-red: #ef4444; /* rose/red accent */
+  --color-cyber-red-glow: rgba(239, 68, 68, 0.05);
+  --color-cyber-purple: #8b5cf6; /* violet/purple accent */
+  --color-cyber-purple-glow: rgba(139, 92, 246, 0.05);
+
+  /* ── Typography (Replacing Orbitron with Inter for professional headers) ── */
+  --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
+  --font-cyber: 'Inter', ui-sans-serif, sans-serif; /* Fallback font-cyber to Inter */
+  --font-mono: 'JetBrains Mono', ui-monospace, 'Cascadia Code', monospace;
+}
+
+/* ═══════════════════════════════════════════════
+   CUSTOM UTILITIES — Minimal Shadows (Replaces neon glows)
+   ═══════════════════════════════════════════════ */
+.cyber-glow-green {
+  box-shadow: 0 1px 3px rgba(16, 185, 129, 0.05);
+}
+.cyber-glow-blue {
+  box-shadow: 0 1px 3px rgba(59, 130, 246, 0.05);
+}
+.cyber-glow-yellow {
+  box-shadow: 0 1px 3px rgba(245, 158, 11, 0.05);
+}
+.cyber-glow-red {
+  box-shadow: 0 1px 3px rgba(239, 68, 68, 0.05);
+}
+.cyber-glow-purple {
+  box-shadow: 0 1px 3px rgba(139, 92, 246, 0.05);
+}
+
+/* ═══════════════════════════════════════════════
+   GLASSMORPHISM
+   ═══════════════════════════════════════════════ */
+.glassmorphism {
+  background: rgba(18, 18, 20, 0.65);
+  backdrop-filter: blur(12px) saturate(1.1);
+  -webkit-backdrop-filter: blur(12px) saturate(1.1);
+  border: 1px solid rgba(63, 63, 70, 0.25);
+}
+
+/* ═══════════════════════════════════════════════
+   CYBER GRID BACKGROUND (Muted grid background)
+   ═══════════════════════════════════════════════ */
+.cyber-grid-bg {
+  background-size: 60px 60px;
+  background-image:
+    linear-gradient(to right, rgba(63, 63, 70, 0.015) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(63, 63, 70, 0.015) 1px, transparent 1px);
+}
+
+/* ═══════════════════════════════════════════════
+   ANIMATIONS (Clean, micro-animations)
+   ═══════════════════════════════════════════════ */
+
+/* Pulse Glow — simplified status pulse */
+@keyframes pulse-glow {
+  0%, 100% {
+    opacity: 0.8;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+.animate-pulse-glow {
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+/* Scanline — sweep animation (disabled for eye comfort) */
+.scanline-effect::after {
+  display: none !important;
+}
+
+/* Data stream flicker — simplified */
+@keyframes data-stream {
+  0% { opacity: 0.8; }
+  50% { opacity: 1; }
+  100% { opacity: 0.8; }
+}
+.animate-data-stream {
+  animation: data-stream 2s ease-in-out infinite;
+}
+
+/* Float — subtle floating effect */
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-2px); }
+}
+.animate-float {
+  animation: float 5s ease-in-out infinite;
+}
+
+/* Glow pulse ring — soft indicator change */
+@keyframes glow-ring {
+  0%, 100% { opacity: 0.7; }
+  50% { opacity: 1; }
+}
+.animate-glow-ring {
+  animation: glow-ring 2s ease-in-out infinite;
+}
+
+/* ═══════════════════════════════════════════════
+   SCROLLBAR CUSTOMIZATION
+   ═══════════════════════════════════════════════ */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+::-webkit-scrollbar-track {
+  background: rgba(10, 10, 12, 0.2);
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(63, 63, 70, 0.4);
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(63, 63, 70, 0.6);
+}
+
+/* Firefox scrollbar */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(63, 63, 70, 0.4) rgba(10, 10, 12, 0.2);
+}
+
+/* ═══════════════════════════════════════════════
+   GLOBAL STYLES
+   ═══════════════════════════════════════════════ */
+html {
+  background-color: #09090b;
+  color-scheme: dark;
+}
+
+/* Smooth transitions on interactive elements */
+button, a, input, select {
+  transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Selection color */
+::selection {
+  background: rgba(16, 185, 129, 0.15);
+  color: white;
+}
