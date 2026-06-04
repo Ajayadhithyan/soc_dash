@@ -18,7 +18,7 @@ from backend.ml.chat_assistant import ChatAssistant
 from backend.ml.llm_summarizer import AlertSummarizer
 from backend.ml.mitre_mapper import MitreMapper
 from backend.ml.threat_scorer import RiskScorer
-from backend.routes import alerts, chat, stats
+from backend.routes import alerts, chat, stats, audit
 from backend.services.alert_processor import generate_event, process_event
 from backend.services.websocket_manager import ConnectionManager
 
@@ -83,6 +83,7 @@ async def run_data_generator():
             except Exception as e:
                 logger.error(f"Error pre-populating startup event: {e}")
         
+        new_events_count = 0
         while True:
             try:
                 # 1. Generate synthetic security event
@@ -117,6 +118,21 @@ async def run_data_generator():
                 
                 logger.info(f"Processed and broadcast alert: {enriched_event_copy.get('event_type')} (Risk: {enriched_event_copy.get('risk_score')})")
                 
+                # Increment counter and retrain if threshold reached
+                new_events_count += 1
+                if new_events_count >= 20:
+                    logger.info("Continuous ML Training: Auto-retraining Isolation Forest anomaly model on recent logs...")
+                    try:
+                        past_events_cursor = db["security_events"].find({}).sort("timestamp", -1).limit(500)
+                        past_events = []
+                        async for doc in past_events_cursor:
+                            past_events.append(doc)
+                        if len(past_events) >= 10:
+                            anomaly_detector.train(past_events)
+                            new_events_count = 0
+                    except Exception as train_err:
+                        logger.error(f"Failed to auto-train model in background: {train_err}")
+                
             except Exception as e:
                 logger.error(f"Error in data generator iteration: {e}", exc_info=True)
                 
@@ -142,6 +158,7 @@ async def lifespan(app: FastAPI):
     # 2. Inject DB dependencies to routes
     alerts.set_db(db)
     stats.set_db(db)
+    audit.set_db(db)
     
     # 3. Initialize & Inject Chat Assistant
     chat_assistant = ChatAssistant(db, config.GEMINI_API_KEY)
@@ -204,6 +221,7 @@ app.add_middleware(
 app.include_router(alerts.router)
 app.include_router(stats.router)
 app.include_router(chat.router)
+app.include_router(audit.router)
 
 
 @app.get("/")

@@ -4,10 +4,12 @@ Generates events, runs them through ML models, and saves enriched alerts to Mong
 """
 
 import random
+import logging
 from datetime import datetime
 from faker import Faker
 
 fake = Faker()
+logger = logging.getLogger("soc_backend")
 
 # -----------------------------------
 # EVENT CONFIGURATION
@@ -114,6 +116,85 @@ def generate_event():
     return event
 
 
+# Map to track login history of users: { username: { country, timestamp_str, lat, lng } }
+last_login_locations = {}
+
+def check_impossible_travel(event):
+    """
+    Check if a user logs in from two different countries in a timeframe
+    physically impossible to travel, overriding to IMPOSSIBLE_TRAVEL if so.
+    """
+    global last_login_locations
+    user = event.get("user")
+    event_type = event.get("event_type")
+    geo = event.get("geo")
+    
+    if not user or not geo or user in ["SYSTEM", "unknown"]:
+        return event
+
+    # Check for login related event types
+    if event_type in ["FAILED_LOGIN", "SSH_BRUTE_FORCE"]:
+        now_str = event.get("timestamp")
+        try:
+            now_dt = datetime.strptime(now_str, "%Y-%m-%d %H:%M:%S")
+        except ValueError:
+            now_dt = datetime.now()
+            
+        last_login = last_login_locations.get(user)
+        if last_login:
+            last_country = last_login["country"]
+            last_time_str = last_login["timestamp"]
+            try:
+                last_dt = datetime.strptime(last_time_str, "%Y-%m-%d %H:%M:%S")
+            except ValueError:
+                last_dt = now_dt
+                
+            time_diff = (now_dt - last_dt).total_seconds()
+            
+            # If country is different and time diff is extremely short (e.g. less than 200 seconds)
+            if last_country != geo["country"] and 0 < time_diff < 200:
+                # Trigger IMPOSSIBLE_TRAVEL alert
+                event["event_type"] = "IMPOSSIBLE_TRAVEL"
+                event["severity"] = "CRITICAL"
+                event["raw_log"] = (
+                    f"Impossible travel detected: User '{user}' authenticated "
+                    f"from {geo['country']} at {now_str} after logging in "
+                    f"from {last_country} at {last_time_str} ({int(time_diff)}s ago)."
+                )
+                logger.warning(f"Impossible travel flagged for user '{user}': {last_country} -> {geo['country']}")
+        
+        # Update last login location
+        last_login_locations[user] = {
+            "country": geo["country"],
+            "timestamp": now_str,
+            "lat": geo.get("lat"),
+            "lng": geo.get("lng")
+        }
+    return event
+
+
+def dispatch_webhook(event):
+    """
+    Simulates sending a Slack webhook notification for CRITICAL severity alerts.
+    """
+    severity = event.get("severity", "LOW")
+    if severity == "CRITICAL":
+        event_type = event.get("event_type")
+        risk = event.get("risk_score")
+        user = event.get("user")
+        src_ip = event.get("src_ip")
+
+        slack_payload = {
+            "text": f"🚨 *CRITICAL ALERT DETECTED* 🚨\n"
+                    f"*Type:* `{event_type}`\n"
+                    f"*Risk Score:* `{risk}`/100\n"
+                    f"*Source IP:* `{src_ip}`\n"
+                    f"*Target User:* `{user}`\n"
+                    f"*Raw Log:* `{event.get('raw_log')}`"
+        }
+        logger.info(f"[Slack Webhook Sim] Dispatching notification payload:\n{slack_payload['text']}")
+
+
 async def process_event(event, anomaly_detector, mitre_mapper, summarizer, risk_scorer):
     """
     Run a single event through the full ML pipeline.
@@ -122,6 +203,9 @@ async def process_event(event, anomaly_detector, mitre_mapper, summarizer, risk_
 
     Returns the enriched event dict ready for MongoDB insertion.
     """
+    # Run Impossible Travel rule check
+    event = check_impossible_travel(event)
+
     # 1. Anomaly Detection
     anomaly_score = anomaly_detector.score(event)
     event["anomaly_score"] = anomaly_score
@@ -140,5 +224,8 @@ async def process_event(event, anomaly_detector, mitre_mapper, summarizer, risk_
     event["risk_label"] = risk["risk_label"]
     event["cvss_base"] = risk["cvss_base"]
     event["asset_criticality"] = risk["asset_criticality"]
+
+    # Dispatch simulated Slack Webhook for Critical alerts
+    dispatch_webhook(event)
 
     return event

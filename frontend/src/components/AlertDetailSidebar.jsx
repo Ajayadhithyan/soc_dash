@@ -11,8 +11,9 @@ import {
   AlertOctagon
 } from 'lucide-react';
 
-function AlertDetailSidebar({ alert, onRespond, responseLogs, isResponding, onClose }) {
+function AlertDetailSidebar({ alert, onRespond, responseLogs, isResponding, onClose, onVerifyAlert }) {
   const [activeTab, setActiveTab] = useState('triage');
+  const [isVerifying, setIsVerifying] = useState(null);
 
   // Helper to color code severity
   const getSeverityColor = (severity) => {
@@ -120,6 +121,51 @@ function AlertDetailSidebar({ alert, onRespond, responseLogs, isResponding, onCl
                     </p>
                   </div>
                 )}
+
+                {/* Incident Classification feedback loop */}
+                <div className="bg-zinc-900/30 border border-zinc-800/80 rounded-xl p-3 flex flex-col gap-2">
+                  <div className="text-[10px] text-zinc-400 font-semibold uppercase tracking-wide">
+                    Incident Classification
+                  </div>
+                  {alert.analyst_verification ? (
+                    <div className={`text-center py-1.5 px-3 rounded-lg border text-[10px] font-semibold tracking-wide ${
+                      alert.analyst_verification === 'TRUE_POSITIVE'
+                        ? 'bg-emerald-950/30 border-emerald-500/50 text-emerald-400'
+                        : 'bg-rose-950/30 border-rose-500/50 text-rose-400'
+                    }`}>
+                      VERIFIED: {alert.analyst_verification.replace('_', ' ')}
+                    </div>
+                  ) : (
+                    <div className="flex gap-2">
+                      <button
+                        onClick={async () => {
+                          if (onVerifyAlert) {
+                            setIsVerifying('TRUE_POSITIVE');
+                            await onVerifyAlert(alert.id, 'TRUE_POSITIVE');
+                            setIsVerifying(null);
+                          }
+                        }}
+                        disabled={isVerifying !== null}
+                        className="flex-1 bg-emerald-950/20 hover:bg-emerald-900/30 border border-emerald-900/30 hover:border-emerald-700/80 text-emerald-300 font-semibold py-1.5 rounded-lg text-[10px] transition-colors disabled:opacity-40 cursor-pointer text-center"
+                      >
+                        {isVerifying === 'TRUE_POSITIVE' ? 'Saving...' : 'True Positive'}
+                      </button>
+                      <button
+                        onClick={async () => {
+                          if (onVerifyAlert) {
+                            setIsVerifying('FALSE_POSITIVE');
+                            await onVerifyAlert(alert.id, 'FALSE_POSITIVE');
+                            setIsVerifying(null);
+                          }
+                        }}
+                        disabled={isVerifying !== null}
+                        className="flex-1 bg-rose-950/20 hover:bg-rose-900/30 border border-rose-900/30 hover:border-rose-700/80 text-rose-300 font-semibold py-1.5 rounded-lg text-[10px] transition-colors disabled:opacity-40 cursor-pointer text-center"
+                      >
+                        {isVerifying === 'FALSE_POSITIVE' ? 'Saving...' : 'False Positive'}
+                      </button>
+                    </div>
+                  )}
+                </div>
 
                 {/* Score Breakdown telemetry */}
                 <div className="bg-zinc-900/30 border border-zinc-800/80 rounded-xl p-3">

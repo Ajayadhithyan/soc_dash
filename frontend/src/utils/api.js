@@ -65,4 +65,11 @@ export const trainModel = async () => {
   return response.data;
 };
 
+export const verifyAlert = async (alertId, status) => {
+  const response = await api.post(`/api/alerts/${alertId}/verify`, null, {
+    params: { status },
+  });
+  return response.data;
+};
+
 export default api;

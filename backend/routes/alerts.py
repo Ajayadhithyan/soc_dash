@@ -162,7 +162,38 @@ async def auto_respond(alert_id: str, action: str = Query(...)):
             {"$set": {"auto_response": result}}
         )
 
+    # Insert into audit_logs
+    audit_entry = {
+        "timestamp": now,
+        "alert_id": alert_id,
+        "action": action,
+        "analyst_user": "admin_analyst",
+        "success": True,
+        "details": result.get("details", {})
+    }
+    await db["audit_logs"].insert_one(audit_entry)
+
     return result
+
+
+@router.post("/{alert_id}/verify")
+async def verify_alert(alert_id: str, status: str = Query(...)):
+    """
+    Mark an alert as TRUE_POSITIVE or FALSE_POSITIVE.
+    """
+    if status.upper() not in ["TRUE_POSITIVE", "FALSE_POSITIVE"]:
+        return {"success": False, "message": f"Invalid verification status: {status}"}
+
+    parts = alert_id.split("_", 1)
+    if len(parts) == 2:
+        res = await db["security_events"].update_one(
+            {"timestamp": parts[0], "src_ip": parts[1]},
+            {"$set": {"analyst_verification": status.upper()}}
+        )
+        if res.matched_count > 0:
+            return {"success": True, "message": f"Alert marked as {status.upper()}."}
+
+    return {"success": False, "message": "Alert not found."}
 
 
 def _get_playbook(event_type):
@@ -234,6 +265,20 @@ def _get_playbook(event_type):
             ],
             "severity": "CRITICAL",
             "estimated_time": "2-6 hours",
+        },
+        "IMPOSSIBLE_TRAVEL": {
+            "name": "Impossible Travel Security Playbook",
+            "steps": [
+                "1. Force terminate all active user sessions for the targeted account.",
+                "2. Disable the user account in Active Directory / Identity Provider.",
+                "3. Contact the user via secondary channel (phone) to verify active location.",
+                "4. Check for anomalous successful authentication logs from both flagged locations.",
+                "5. Inspect EDR/endpoint logs on devices used at both locations.",
+                "6. Enforce immediate credential reset and MFA token re-registration.",
+                "7. Check for lateral movement or data exfiltration from either session."
+            ],
+            "severity": "CRITICAL",
+            "estimated_time": "30-45 minutes",
         },
     }
     return playbooks.get(event_type, {

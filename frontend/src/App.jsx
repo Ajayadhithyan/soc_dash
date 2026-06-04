@@ -17,6 +17,7 @@ import {
   respondToAlert,
   sendChatMessage,
   trainModel,
+  verifyAlert,
 } from './utils/api';
 import { Shield, TrendingUp, Cpu, X, BookOpen, AlertOctagon, Terminal } from 'lucide-react';
 import './App.css';
@@ -290,6 +291,25 @@ function App() {
     }
   };
 
+  const handleVerifyAlert = async (alertId, status) => {
+    try {
+      const res = await verifyAlert(alertId, status);
+      if (res && res.success) {
+        setSelectedAlert((prev) => {
+          if (prev && prev.id === alertId) {
+            return { ...prev, analyst_verification: status };
+          }
+          return prev;
+        });
+        setAlerts((prev) =>
+          prev.map((a) => (a.id === alertId ? { ...a, analyst_verification: status } : a))
+        );
+      }
+    } catch (err) {
+      console.error('Error verifying alert:', err);
+    }
+  };
+
   const handlePreCannedPromptClick = (promptText) => {
     handleSendChatMessage(promptText);
   };
@@ -374,6 +394,7 @@ function App() {
                 responseLogs={responseLogs}
                 isResponding={isResponding}
                 onClose={() => setSelectedAlert(null)}
+                onVerifyAlert={handleVerifyAlert}
               />
             ) : (
               <div className="flex flex-col h-full gap-6">
