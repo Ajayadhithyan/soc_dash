@@ -30,7 +30,7 @@ function App() {
   const [alerts, setAlerts] = useState([]);
   const [totalAlerts, setTotalAlerts] = useState(0);
   const [page, setPage] = useState(1);
-  const [perPage] = useState(12); // Show 12 per page for clean multi-pane layout
+  const [perPage] = useState(15); // Show 15 per page for clean multi-pane layout
   const [filters, setFilters] = useState({
     search: '',
     severity: '',
