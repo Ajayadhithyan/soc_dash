@@ -1,0 +1,12 @@
+{
+  "venvPath": "C:\\Users\\V.AJAY ADHITHYAN\\Desktop\\soc",
+  "venv": "venv",
+  "pythonVersion": "3.12",
+  "pythonPlatform": "Windows",
+  "extraPaths": [
+    "C:\\Users\\V.AJAY ADHITHYAN\\Desktop\\soc",
+    "C:\\Users\\V.AJAY ADHITHYAN\\Desktop\\soc\\venv\\Lib\\site-packages"
+  ],
+  "reportMissingImports": "none",
+  "reportMissingModuleSource": "none"
+}

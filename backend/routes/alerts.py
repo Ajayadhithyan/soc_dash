@@ -3,33 +3,31 @@ Alert API routes.
 Provides endpoints for listing, filtering, and responding to security alerts.
 """
 
-from fastapi import APIRouter, Query
-from datetime import datetime
 import random
+import logging
+from datetime import datetime
+from fastapi import APIRouter, Depends, Query
 
+from backend.models.schemas import AutoResponseResult
+from backend.services.auth import optional_current_user
+from backend.services.container import get_db, get_container, AppContainer
+
+logger = logging.getLogger("soc_backend")
 router = APIRouter(prefix="/api/alerts", tags=["alerts"])
-
-# Will be set from main.py
-db = None
-
-
-def set_db(database):
-    global db
-    db = database
 
 
 @router.get("")
 async def get_alerts(
+    db=Depends(get_db),
     page: int = Query(1, ge=1),
     per_page: int = Query(50, ge=1, le=200),
     severity: str = Query(None),
     event_type: str = Query(None),
     sort_by: str = Query("timestamp"),
     sort_order: str = Query("desc"),
+    current_user: dict = Depends(optional_current_user),
 ):
-    """Get paginated list of alerts with optional filters."""
     query = {}
-
     if severity:
         query["severity"] = severity.upper()
     if event_type:
@@ -39,46 +37,38 @@ async def get_alerts(
     skip = (page - 1) * per_page
 
     total = await db["security_events"].count_documents(query)
-
-    cursor = db["security_events"].find(
-        query, {"_id": 0}
-    ).sort(sort_by, sort_direction).skip(skip).limit(per_page)
+    cursor = db["security_events"].find(query, {"_id": 0}).sort(sort_by, sort_direction).skip(skip).limit(per_page)
 
     alerts = []
     async for doc in cursor:
-        # Add a synthetic ID based on index if not present
         if "id" not in doc:
             doc["id"] = doc.get("timestamp", "") + "_" + doc.get("src_ip", "")
         alerts.append(doc)
 
-    return {
-        "alerts": alerts,
-        "total": total,
-        "page": page,
-        "per_page": per_page,
-    }
+    return {"alerts": alerts, "total": total, "page": page, "per_page": per_page}
 
 
 @router.get("/recent")
-async def get_recent_alerts(limit: int = Query(20, ge=1, le=100)):
-    """Get the most recent alerts."""
-    cursor = db["security_events"].find(
-        {}, {"_id": 0}
-    ).sort("timestamp", -1).limit(limit)
-
+async def get_recent_alerts(
+    db=Depends(get_db),
+    limit: int = Query(20, ge=1, le=100),
+    current_user: dict = Depends(optional_current_user),
+):
+    cursor = db["security_events"].find({}, {"_id": 0}).sort("timestamp", -1).limit(limit)
     alerts = []
     async for doc in cursor:
         if "id" not in doc:
             doc["id"] = doc.get("timestamp", "") + "_" + doc.get("src_ip", "")
         alerts.append(doc)
-
     return {"alerts": alerts, "count": len(alerts)}
 
 
 @router.get("/{alert_id}")
-async def get_alert_detail(alert_id: str):
-    """Get a single alert with full details and playbook suggestions."""
-    # Parse the synthetic ID
+async def get_alert_detail(
+    alert_id: str,
+    db=Depends(get_db),
+    current_user: dict = Depends(optional_current_user),
+):
     parts = alert_id.split("_", 1)
     query = {}
     if len(parts) == 2:
@@ -87,28 +77,23 @@ async def get_alert_detail(alert_id: str):
         query = {"timestamp": alert_id}
 
     doc = await db["security_events"].find_one(query, {"_id": 0})
-
     if not doc:
         return {"error": "Alert not found"}
 
     doc["id"] = alert_id
-
-    # Add playbook suggestions based on event type
-    playbooks = _get_playbook(doc.get("event_type", ""))
-    doc["playbook"] = playbooks
-
+    doc["playbook"] = _get_playbook(doc.get("event_type", ""))
     return doc
 
 
 @router.post("/{alert_id}/respond")
-async def auto_respond(alert_id: str, action: str = Query(...)):
-    """
-    Execute a simulated auto-response action.
-    Actions: block_ip, quarantine_host, create_ticket
-    """
+async def auto_respond(
+    alert_id: str,
+    action: str = Query(...),
+    db=Depends(get_db),
+    container: AppContainer = Depends(get_container),
+    current_user: dict = Depends(optional_current_user),
+):
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
-    # Parse alert ID to get context
     parts = alert_id.split("_", 1)
     src_ip = parts[1] if len(parts) == 2 else "unknown"
 
@@ -128,7 +113,7 @@ async def auto_respond(alert_id: str, action: str = Query(...)):
         "quarantine_host": {
             "success": True,
             "action": "quarantine_host",
-            "message": f"Host isolation initiated. Network segment quarantined.",
+            "message": "Host isolation initiated. Network segment quarantined.",
             "timestamp": now,
             "details": {
                 "ticket_id": f"QR-{random.randint(10000, 99999)}",
@@ -140,7 +125,7 @@ async def auto_respond(alert_id: str, action: str = Query(...)):
         "create_ticket": {
             "success": True,
             "action": "create_ticket",
-            "message": f"Incident ticket created and assigned to SOC Tier-2 team.",
+            "message": "Incident ticket created and assigned to SOC Tier-2 team.",
             "timestamp": now,
             "details": {
                 "ticket_id": f"INC-{random.randint(100000, 999999)}",
@@ -149,38 +134,66 @@ async def auto_respond(alert_id: str, action: str = Query(...)):
                 "sla_response": "15 minutes",
             },
         },
+        "escalate_to_siem": {
+            "success": True,
+            "action": "escalate_to_siem",
+            "message": "Alert escalated to enterprise SIEM (Splunk/Sentinel) with full correlation context.",
+            "timestamp": now,
+            "details": {
+                "siem_event_id": f"SIEM-{random.randint(100000, 999999)}",
+                "forwarded_to": "Splunk ES / Azure Sentinel",
+                "correlation_enriched": True,
+                "priority": "Critical",
+            },
+        },
+        "notify_slack": {
+            "success": True,
+            "action": "notify_slack",
+            "message": "Slack notification dispatched to #soc-critical-alerts channel.",
+            "timestamp": now,
+            "details": {
+                "channel": "#soc-critical-alerts",
+                "webhook_status": "delivered",
+                "notification_id": f"SLK-{random.randint(10000, 99999)}",
+                "mentioned_groups": ["@soc-team", "@incident-response"],
+            },
+        },
     }
 
     result = responses.get(action)
     if not result:
         return {"success": False, "message": f"Unknown action: {action}"}
 
-    # Store the response action in the alert
     if len(parts) == 2:
         await db["security_events"].update_one(
             {"timestamp": parts[0], "src_ip": parts[1]},
-            {"$set": {"auto_response": result}}
+            {"$set": {"auto_response": result}},
         )
 
-    # Insert into audit_logs
+    analyst_user = current_user.get("sub", "analyst") if current_user else "anonymous"
     audit_entry = {
         "timestamp": now,
         "alert_id": alert_id,
         "action": action,
-        "analyst_user": "admin_analyst",
+        "analyst_user": analyst_user,
         "success": True,
-        "details": result.get("details", {})
+        "details": result.get("details", {}),
     }
     await db["audit_logs"].insert_one(audit_entry)
+
+    if action == "block_ip" and src_ip != "unknown":
+        container.threat_intel.add_blocked_ip(src_ip)
 
     return result
 
 
 @router.post("/{alert_id}/verify")
-async def verify_alert(alert_id: str, status: str = Query(...)):
-    """
-    Mark an alert as TRUE_POSITIVE or FALSE_POSITIVE.
-    """
+async def verify_alert(
+    alert_id: str,
+    status: str = Query(...),
+    db=Depends(get_db),
+    current_user: dict = Depends(optional_current_user),
+):
     if status.upper() not in ["TRUE_POSITIVE", "FALSE_POSITIVE"]:
         return {"success": False, "message": f"Invalid verification status: {status}"}
 
@@ -188,7 +201,7 @@ async def verify_alert(alert_id: str, status: str = Query(...)):
     if len(parts) == 2:
         res = await db["security_events"].update_one(
             {"timestamp": parts[0], "src_ip": parts[1]},
-            {"$set": {"analyst_verification": status.upper()}}
+            {"$set": {"analyst_verification": status.upper()}},
         )
         if res.matched_count > 0:
             return {"success": True, "message": f"Alert marked as {status.upper()}."}
@@ -197,16 +210,15 @@ async def verify_alert(alert_id: str, status: str = Query(...)):
 
 
 def _get_playbook(event_type):
-    """Return response playbook suggestions for an event type."""
     playbooks = {
         "SSH_BRUTE_FORCE": {
             "name": "SSH Brute Force Response",
             "steps": [
                 "1. Verify if the targeted account has been compromised by checking successful logins.",
                 "2. Block the source IP at the perimeter firewall.",
-                "3. Enforce account lockout policy (5 failed attempts → 30 min lock).",
+                "3. Enforce account lockout policy (5 failed attempts to 30 min lock).",
                 "4. Enable MFA on the targeted account if not already active.",
-                "5. Review SSH server configuration — disable root login, use key-based auth.",
+                "5. Review SSH server configuration: disable root login, use key-based auth.",
                 "6. Escalate to Tier-2 if successful login detected from the source IP.",
             ],
             "severity": "HIGH",
@@ -220,7 +232,7 @@ def _get_playbook(event_type):
                 "3. Check if the source IP has conducted prior scanning activity.",
                 "4. Add the source IP to the watchlist for 72 hours.",
                 "5. Review IDS/IPS signatures for follow-up exploitation attempts.",
-                "6. If internal source — investigate for compromised host or insider threat.",
+                "6. If internal source: investigate for compromised host or insider threat.",
             ],
             "severity": "MEDIUM",
             "estimated_time": "10-20 minutes",
@@ -230,7 +242,7 @@ def _get_playbook(event_type):
             "steps": [
                 "1. Check if this is an isolated event or part of a pattern.",
                 "2. Verify the user account is valid and not a service account.",
-                "3. If repeated — implement temporary IP-based rate limiting.",
+                "3. If repeated: implement temporary IP-based rate limiting.",
                 "4. Contact the account owner to verify legitimacy.",
                 "5. Review authentication logs for the same source IP.",
             ],
@@ -244,7 +256,7 @@ def _get_playbook(event_type):
                 "2. Collect forensic artifacts (memory dump, disk image, logs).",
                 "3. Identify the malware family and check for IOCs.",
                 "4. Scan all hosts in the same network segment for lateral movement.",
-                "5. Block the C2 server IP/domain at DNS and firewall level.",
+                "5. Block the C2 server IP/DNS at firewall level.",
                 "6. Initiate full AV scan across the organization.",
                 "7. Restore from last known clean backup if necessary.",
                 "8. Escalate to CIRT (Cyber Incident Response Team).",
@@ -258,8 +270,8 @@ def _get_playbook(event_type):
                 "1. Block the external destination IP immediately.",
                 "2. Identify what data was transferred (DLP logs, file access logs).",
                 "3. Preserve network capture data for forensic analysis.",
-                "4. Check if the source host is compromised — run EDR scan.",
-                "5. Notify data governance / legal team if PII/sensitive data involved.",
+                "4. Check if the source host is compromised: run EDR scan.",
+                "5. Notify data governance/legal team if PII/sensitive data involved.",
                 "6. Review the user's access permissions and recent activity.",
                 "7. Escalate to CIRT and management if confirmed exfiltration.",
             ],
@@ -275,15 +287,18 @@ def _get_playbook(event_type):
                 "4. Check for anomalous successful authentication logs from both flagged locations.",
                 "5. Inspect EDR/endpoint logs on devices used at both locations.",
                 "6. Enforce immediate credential reset and MFA token re-registration.",
-                "7. Check for lateral movement or data exfiltration from either session."
+                "7. Check for lateral movement or data exfiltration from either session.",
             ],
             "severity": "CRITICAL",
             "estimated_time": "30-45 minutes",
         },
     }
-    return playbooks.get(event_type, {
-        "name": "General Response",
-        "steps": ["1. Investigate the alert.", "2. Escalate if necessary."],
-        "severity": "MEDIUM",
-        "estimated_time": "15 minutes",
-    })
+    return playbooks.get(
+        event_type,
+        {
+            "name": "General Response",
+            "steps": ["1. Investigate the alert.", "2. Escalate if necessary."],
+            "severity": "MEDIUM",
+            "estimated_time": "15 minutes",
+        },
+    )

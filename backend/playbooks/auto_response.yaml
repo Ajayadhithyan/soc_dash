@@ -1,0 +1,61 @@
+# Zenith SOC — Automated Response Playbooks
+# These rules are evaluated against every incoming enriched alert.
+# If conditions match, the listed actions are auto-triggered (simulated).
+
+rules:
+  - name: "Critical Threat Auto-Containment"
+    description: "Auto-block and quarantine on critical alerts with high anomaly scores"
+    logic: AND
+    conditions:
+      - field: severity
+        operator: eq
+        value: CRITICAL
+      - field: anomaly_score
+        operator: gt
+        value: 0.85
+    actions:
+      - block_ip
+      - quarantine_host
+      - notify_slack
+
+  - name: "Malware Auto-Isolation"
+    description: "Immediately isolate hosts with malware detections"
+    logic: AND
+    conditions:
+      - field: event_type
+        operator: eq
+        value: MALWARE_DETECTION
+      - field: risk_score
+        operator: gt
+        value: 70
+    actions:
+      - quarantine_host
+      - create_ticket
+      - notify_slack
+
+  - name: "Exfiltration Emergency Response"
+    description: "Block source and escalate on data exfiltration with high risk"
+    logic: AND
+    conditions:
+      - field: event_type
+        operator: eq
+        value: DATA_EXFILTRATION
+      - field: risk_score
+        operator: gt
+        value: 60
+    actions:
+      - block_ip
+      - escalate_to_siem
+      - notify_slack
+
+  - name: "Impossible Travel Account Lock"
+    description: "Immediately escalate impossible travel detections"
+    logic: AND
+    conditions:
+      - field: event_type
+        operator: eq
+        value: IMPOSSIBLE_TRAVEL
+    actions:
+      - create_ticket
+      - escalate_to_siem
+      - notify_slack

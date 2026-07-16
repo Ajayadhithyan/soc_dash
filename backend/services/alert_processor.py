@@ -195,11 +195,24 @@ def dispatch_webhook(event):
         logger.info(f"[Slack Webhook Sim] Dispatching notification payload:\n{slack_payload['text']}")
 
 
-async def process_event(event, anomaly_detector, mitre_mapper, summarizer, risk_scorer):
+async def process_event(
+    event,
+    anomaly_detector,
+    mitre_mapper,
+    summarizer,
+    risk_scorer,
+    feedback_classifier=None,
+    correlation_engine=None,
+    sigma_engine=None,
+    threat_intel=None,
+    playbook_engine=None,
+):
     """
     Run a single event through the full ML pipeline.
 
     Pipeline: event → anomaly score → MITRE map → LLM summary → risk score
+              → feedback classifier → correlation → SIGMA rules
+              → threat intel → playbook automation
 
     Returns the enriched event dict ready for MongoDB insertion.
     """
@@ -224,6 +237,41 @@ async def process_event(event, anomaly_detector, mitre_mapper, summarizer, risk_
     event["risk_label"] = risk["risk_label"]
     event["cvss_base"] = risk["cvss_base"]
     event["asset_criticality"] = risk["asset_criticality"]
+
+    # 5. Threat Intelligence Enrichment
+    if threat_intel:
+        intel = threat_intel.enrich_event(event)
+        event["threat_intel"] = intel
+
+    # 6. SIGMA Rule Evaluation
+    if sigma_engine:
+        sigma_matches = sigma_engine.evaluate(event)
+        event["sigma_matches"] = sigma_matches
+
+    # 7. Correlation Engine
+    if correlation_engine:
+        correlation = correlation_engine.correlate(event)
+        event["correlation"] = correlation
+        # Apply correlation risk boost
+        if correlation.get("total_risk_boost", 0) > 0:
+            boosted = min(100.0, event["risk_score"] + correlation["total_risk_boost"])
+            event["risk_score"] = round(boosted, 1)
+            # Recalculate label after boost
+            if event["risk_score"] > 75:
+                event["risk_label"] = "Critical"
+            elif event["risk_score"] > 50:
+                event["risk_label"] = "High"
+
+    # 8. Feedback Classifier Prediction
+    if feedback_classifier:
+        feedback = feedback_classifier.predict(event)
+        event["feedback"] = feedback
+
+    # 9. Playbook Automation
+    if playbook_engine:
+        auto_actions = playbook_engine.evaluate(event)
+        if auto_actions:
+            event["auto_playbook_actions"] = auto_actions
 
     # Dispatch simulated Slack Webhook for Critical alerts
     dispatch_webhook(event)

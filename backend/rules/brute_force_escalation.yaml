@@ -1,0 +1,23 @@
+# SIGMA Rule: Brute Force on Privileged Accounts
+# Detects SSH brute force attacks targeting high-value accounts
+
+id: SIGMA-001
+name: Brute Force on Privileged Account
+description: SSH brute force attack detected targeting a privileged account (root, admin, kali). These accounts have elevated access and require immediate investigation.
+severity: CRITICAL
+tags:
+  - brute_force
+  - privileged_access
+  - credential_attack
+
+logic: AND
+conditions:
+  - field: event_type
+    operator: eq
+    value: SSH_BRUTE_FORCE
+  - field: user
+    operator: in
+    value:
+      - root
+      - admin
+      - kali

@@ -1,8 +1,8 @@
-# 🛡️ Aegis AI SOC Dashboard — Command Center
+# 🛡️ Zenith SOC Dashboard — Command Center
 
 > **Real-Time Cybersecurity Threat Telemetry, Machine Learning Anomaly Detection & AI Playbook Orchestrator**
 
-Aegis AI is a production-inspired Security Operations Center (SOC) analyst dashboard designed to aggregate, analyze, prioritize, and respond to security events in real-time. By combining **scikit-learn unsupervised machine learning**, **Google Gemini AI reasoning**, and **real-time WebSocket streaming**, Aegis AI automates the initial triage stages of a security incident, giving analysts high-context data, threat intelligence mapping, and automated playbooks at their fingertips.
+Zenith SOC is a production-inspired Security Operations Center (SOC) analyst dashboard designed to aggregate, analyze, prioritize, and respond to security events in real-time. By combining **scikit-learn unsupervised machine learning**, **Google Gemini AI reasoning**, and **real-time WebSocket streaming**, Zenith SOC automates the initial triage stages of a security incident, giving analysts high-context data, threat intelligence mapping, and automated playbooks at their fingertips.
 
 ---
 
@@ -40,7 +40,7 @@ Aegis AI is a production-inspired Security Operations Center (SOC) analyst dashb
 
 ## 🏗️ Technical Architecture
 
-Aegis AI uses a distributed, full-stack architecture optimized for high-throughput stream processing and low-latency rendering:
+Zenith SOC uses a distributed, full-stack architecture optimized for high-throughput stream processing and low-latency rendering:
 
 ```
                   ┌─────────────────────────────────────────────────────────────┐
@@ -130,7 +130,7 @@ A hybrid mapping logic categorizes every security alert:
 - **Unknown/Uncategorized Events**: Enters the Gemini inference pipeline, using zero-shot classification to map the incident to a relevant Technique ID, Name, Tactic, and list of Sub-techniques.
 
 ### 5. Algorithmic Risk Scoring
-Rather than relying on raw severity flags, Aegis AI evaluates a weighted index formula:
+Rather than relying on raw severity flags, Zenith SOC evaluates a weighted index formula:
 
 $$\text{Risk Score} = (0.40 \times \text{CVSS Normalized}) + (0.35 \times \text{Anomaly Score} \times 10) + (0.25 \times \text{Asset Criticality})$$
 
@@ -231,7 +231,7 @@ DB_NAME=soc_ai_dashboard
 GEMINI_API_KEY=your_gemini_api_key_here
 EVENT_GENERATION_INTERVAL=90
 ```
-> **Note**: Aegis AI will run perfectly in fallback mode if `GEMINI_API_KEY` is left blank, substituting local rule engines for RAG chat and structured templates for alert summaries.
+> **Note**: Zenith SOC will run perfectly in fallback mode if `GEMINI_API_KEY` is left blank, substituting local rule engines for RAG chat and structured templates for alert summaries.
 
 ### Step 3: Set up Python Backend
 Create a virtual environment, activate it, and install dependencies:

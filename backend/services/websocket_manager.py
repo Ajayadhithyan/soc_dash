@@ -5,6 +5,9 @@ Handles multiple client connections and broadcasts new alerts in real time.
 
 from fastapi import WebSocket
 import json
+import logging
+
+logger = logging.getLogger("soc_backend")
 
 
 class ConnectionManager:
@@ -17,13 +20,13 @@ class ConnectionManager:
         """Accept a new WebSocket connection."""
         await websocket.accept()
         self.active_connections.append(websocket)
-        print(f"[WS] Client connected. Total: {len(self.active_connections)}")
+        logger.info(f"[WS] Client connected. Total: {len(self.active_connections)}")
 
     def disconnect(self, websocket: WebSocket):
         """Remove a disconnected client."""
         if websocket in self.active_connections:
             self.active_connections.remove(websocket)
-        print(f"[WS] Client disconnected. Total: {len(self.active_connections)}")
+        logger.info(f"[WS] Client disconnected. Total: {len(self.active_connections)}")
 
     async def broadcast(self, data: dict):
         """Send data to all connected clients."""
@@ -39,7 +42,6 @@ class ConnectionManager:
             except Exception:
                 disconnected.append(connection)
 
-        # Clean up broken connections
         for conn in disconnected:
             self.disconnect(conn)
 

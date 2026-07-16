@@ -6,11 +6,9 @@ Google Gemini API or a smart rule-based fallback.
 
 import os
 import random
+import logging
 
-
-# -----------------------------------
-# FALLBACK TEMPLATES
-# -----------------------------------
+logger = logging.getLogger("soc_backend")
 
 SUMMARY_TEMPLATES = {
     "SSH_BRUTE_FORCE": [
@@ -25,7 +23,7 @@ SUMMARY_TEMPLATES = {
     ],
     "FAILED_LOGIN": [
         "A failed authentication attempt was recorded for user '{user}' from IP {src_ip}. While isolated failures are common, a pattern of failures from this source should trigger account lockout policies.",
-        "User '{user}' failed to authenticate from {src_ip}. Monitor for additional failures from this source — repeated attempts may indicate credential compromise or unauthorized access attempts.",
+        "User '{user}' failed to authenticate from {src_ip}. Monitor for additional failures from this source: repeated attempts may indicate credential compromise or unauthorized access attempts.",
     ],
     "MALWARE_DETECTION": [
         "Malware was detected on endpoint {dest_ip} with traffic originating from {src_ip}. The affected host should be immediately isolated from the network, and a full forensic scan should be initiated.",
@@ -40,12 +38,6 @@ SUMMARY_TEMPLATES = {
 
 
 class AlertSummarizer:
-    """
-    Generates analyst-friendly summaries for security alerts.
-    Uses Google Gemini API when available, otherwise falls back
-    to contextual template-based summaries.
-    """
-
     def __init__(self, gemini_api_key=None):
         self.gemini_api_key = gemini_api_key or os.getenv("GEMINI_API_KEY", "")
         self.use_llm = bool(self.gemini_api_key)
@@ -56,27 +48,17 @@ class AlertSummarizer:
                 import google.generativeai as genai
                 genai.configure(api_key=self.gemini_api_key)
                 self._gemini_model = genai.GenerativeModel("gemini-2.5-flash")
-                print("[Summarizer] Gemini API configured for alert summarization.")
+                logger.info("[Summarizer] Gemini API configured for alert summarization.")
             except Exception as e:
-                print(f"[Summarizer] Gemini init failed: {e}. Using fallback templates.")
+                logger.error(f"[Summarizer] Gemini init failed: {e}. Using fallback templates.")
                 self.use_llm = False
 
     def summarize(self, event):
-        """
-        Generate a 2-sentence analyst-friendly summary.
-
-        Args:
-            event: dict with event_type, raw_log, src_ip, dest_ip, user, severity.
-
-        Returns:
-            str: Plain-English summary.
-        """
         if self.use_llm and self._gemini_model:
             return self._llm_summarize(event)
         return self._fallback_summarize(event)
 
     def _llm_summarize(self, event):
-        """Use Gemini to generate a natural-language summary."""
         try:
             prompt = f"""You are a senior SOC analyst. Summarize this security alert in exactly 2 concise sentences for an analyst dashboard. Be specific about the threat and recommended action.
 
@@ -91,22 +73,17 @@ Summary:"""
 
             response = self._gemini_model.generate_content(prompt)
             summary = response.text.strip()
-
-            # Truncate if too long (keep it concise)
             sentences = summary.split(". ")
             if len(sentences) > 3:
                 summary = ". ".join(sentences[:2]) + "."
-
             return summary
         except Exception as e:
-            print(f"[Summarizer] LLM error: {e}. Using fallback.")
+            logger.error(f"[Summarizer] LLM error: {e}. Using fallback.")
             return self._fallback_summarize(event)
 
     def _fallback_summarize(self, event):
-        """Generate a summary using contextual templates."""
         event_type = event.get("event_type", "FAILED_LOGIN")
         templates = SUMMARY_TEMPLATES.get(event_type, SUMMARY_TEMPLATES["FAILED_LOGIN"])
-
         template = random.choice(templates)
         return template.format(
             src_ip=event.get("src_ip", "unknown"),

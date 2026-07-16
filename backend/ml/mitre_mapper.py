@@ -5,10 +5,9 @@ Google Gemini (zero-shot classification) or a deterministic fallback table.
 """
 
 import os
+import logging
 
-# -----------------------------------
-# DETERMINISTIC MAPPING TABLE
-# -----------------------------------
+logger = logging.getLogger("soc_backend")
 
 MITRE_MAPPINGS = {
     "SSH_BRUTE_FORCE": {
@@ -55,12 +54,6 @@ MITRE_MAPPINGS = {
 
 
 class MitreMapper:
-    """
-    Maps security events to MITRE ATT&CK techniques.
-    Uses Gemini API for zero-shot classification when available,
-    otherwise falls back to deterministic table.
-    """
-
     def __init__(self, gemini_api_key=None):
         self.gemini_api_key = gemini_api_key or os.getenv("GEMINI_API_KEY", "")
         self.use_llm = bool(self.gemini_api_key)
@@ -71,29 +64,16 @@ class MitreMapper:
                 import google.generativeai as genai
                 genai.configure(api_key=self.gemini_api_key)
                 self._gemini_model = genai.GenerativeModel("gemini-2.5-flash")
-                print("[MITRE] Gemini API configured for zero-shot classification.")
+                logger.info("[MITRE] Gemini API configured for zero-shot classification.")
             except Exception as e:
-                print(f"[MITRE] Gemini init failed: {e}. Using fallback mapping.")
+                logger.error(f"[MITRE] Gemini init failed: {e}. Using fallback mapping.")
                 self.use_llm = False
 
     def map_event(self, event):
-        """
-        Map a security event to MITRE ATT&CK technique.
-
-        Args:
-            event: dict with event_type, raw_log, etc.
-
-        Returns:
-            dict with technique_id, technique_name, tactic, description, sub_techniques.
-        """
         event_type = event.get("event_type", "")
 
-        # Always use deterministic mapping for speed and reliability
-        # LLM is used only for enrichment / unknown event types
         if event_type in MITRE_MAPPINGS:
             mapping = MITRE_MAPPINGS[event_type].copy()
-
-            # If LLM is available, try to get additional context
             if self.use_llm and self._gemini_model:
                 try:
                     enrichment = self._llm_enrich(event)
@@ -101,10 +81,8 @@ class MitreMapper:
                         mapping["llm_analysis"] = enrichment
                 except Exception:
                     pass
-
             return mapping
 
-        # Unknown event type — try LLM or return generic
         if self.use_llm and self._gemini_model:
             return self._llm_classify(event)
 
@@ -112,13 +90,12 @@ class MitreMapper:
             "technique_id": "T1059",
             "technique_name": "Command and Scripting Interpreter",
             "tactic": "Execution",
-            "description": "Unknown event type — generic classification applied.",
+            "description": "Unknown event type: generic classification applied.",
             "sub_techniques": [],
             "severity_boost": 0.0,
         }
 
     def _llm_classify(self, event):
-        """Use Gemini for zero-shot MITRE ATT&CK classification."""
         try:
             prompt = f"""You are a cybersecurity analyst. Classify this security event into the most likely MITRE ATT&CK technique.
 
@@ -135,7 +112,6 @@ Description: [one sentence description]"""
             response = self._gemini_model.generate_content(prompt)
             text = response.text.strip()
 
-            # Parse response
             lines = text.split("\n")
             result = {
                 "technique_id": "T1059",
@@ -158,18 +134,17 @@ Description: [one sentence description]"""
 
             return result
         except Exception as e:
-            print(f"[MITRE] LLM classify error: {e}")
+            logger.error(f"[MITRE] LLM classify error: {e}")
             return {
                 "technique_id": "T1059",
                 "technique_name": "Command and Scripting Interpreter",
                 "tactic": "Execution",
-                "description": "LLM classification failed — fallback applied.",
+                "description": "LLM classification failed: fallback applied.",
                 "sub_techniques": [],
                 "severity_boost": 0.0,
             }
 
     def _llm_enrich(self, event):
-        """Use Gemini to add extra analyst context to the mapping."""
         try:
             prompt = f"""In one sentence, explain the tactical significance of this security event for a SOC analyst:
 

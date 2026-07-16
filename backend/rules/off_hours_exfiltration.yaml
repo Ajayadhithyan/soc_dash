@@ -1,0 +1,22 @@
+# SIGMA Rule: Off-Hours Data Exfiltration
+# Detects data exfiltration events targeting database or server assets
+
+id: SIGMA-002
+name: Data Exfiltration on Critical Asset
+description: Data exfiltration event detected targeting a critical infrastructure asset (database or server). High-value assets being exfiltrated demand immediate containment.
+severity: CRITICAL
+tags:
+  - exfiltration
+  - critical_asset
+  - data_theft
+
+logic: AND
+conditions:
+  - field: event_type
+    operator: eq
+    value: DATA_EXFILTRATION
+  - field: asset_type
+    operator: in
+    value:
+      - database
+      - server

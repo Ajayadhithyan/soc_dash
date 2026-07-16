@@ -1,0 +1,20 @@
+# SIGMA Rule: High Anomaly Score Malware
+# Detects malware with a high anomaly score indicating novel or sophisticated threat
+
+id: SIGMA-003
+name: High-Anomaly Malware Detection
+description: Malware detected with an anomaly score above 0.7, indicating the behavioral signature is statistically unusual compared to baseline activity. Likely a novel or polymorphic threat.
+severity: CRITICAL
+tags:
+  - malware
+  - high_anomaly
+  - novel_threat
+
+logic: AND
+conditions:
+  - field: event_type
+    operator: eq
+    value: MALWARE_DETECTION
+  - field: anomaly_score
+    operator: gt
+    value: 0.7
