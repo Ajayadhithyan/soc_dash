@@ -12,6 +12,19 @@ function SOARAuditLogs() {
   const [filterAction, setFilterAction] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
 
+  const soarKpiDotColor: Record<string, string> = {
+    purple: 'bg-purple-500',
+    rose: 'bg-rose-500',
+    amber: 'bg-amber-500',
+    blue: 'bg-blue-500',
+  };
+  const soarKpiIconColor: Record<string, string> = {
+    purple: 'text-purple-400',
+    rose: 'text-rose-400',
+    amber: 'text-amber-400',
+    blue: 'text-blue-400',
+  };
+
   const fetchLogs = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -120,11 +133,11 @@ function SOARAuditLogs() {
               <span className="text-[10px] text-zinc-500 font-semibold tracking-wide uppercase">{label}</span>
               <span className="text-2xl font-bold text-white mt-1 leading-none tracking-tight">{value}</span>
               <span className="text-[9px] text-zinc-400 mt-2 flex items-center gap-1.5">
-                <span className={`w-1.5 h-1.5 rounded-full bg-${color}-500 inline-block ${pulse ? 'animate-pulse' : ''}`}></span>
+                <span className={`w-1.5 h-1.5 rounded-full inline-block ${soarKpiDotColor[color]} ${pulse ? 'animate-pulse' : ''}`}></span>
                 {status}
               </span>
             </div>
-            <div className={`p-2 rounded-lg border border-zinc-800 bg-zinc-950 text-${color}-400`}>
+            <div className={`p-2 rounded-lg border border-zinc-800 bg-zinc-950 ${soarKpiIconColor[color]}`}>
               <KpiIcon className="w-4 h-4" />
             </div>
           </div>

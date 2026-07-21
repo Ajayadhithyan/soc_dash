@@ -7,6 +7,7 @@ Google Gemini API or a smart rule-based fallback.
 import os
 import random
 import logging
+import httpx
 
 logger = logging.getLogger("soc_backend")
 
@@ -38,23 +39,44 @@ SUMMARY_TEMPLATES = {
 
 
 class AlertSummarizer:
-    def __init__(self, gemini_api_key=None):
-        self.gemini_api_key = gemini_api_key or os.getenv("GEMINI_API_KEY", "")
-        self.use_llm = bool(self.gemini_api_key)
-        self._gemini_model = None
+    def __init__(self, opencode_api_key=None):
+        self.opencode_api_key = opencode_api_key or os.getenv("OPENCODE_API_KEY", "")
+        self.use_llm = bool(self.opencode_api_key)
 
         if self.use_llm:
-            try:
-                import google.generativeai as genai
-                genai.configure(api_key=self.gemini_api_key)
-                self._gemini_model = genai.GenerativeModel("gemini-2.5-flash")
-                logger.info("[Summarizer] Gemini API configured for alert summarization.")
-            except Exception as e:
-                logger.error(f"[Summarizer] Gemini init failed: {e}. Using fallback templates.")
-                self.use_llm = False
+            logger.info("[Summarizer] OpenCode API configured for alert summarization.")
+
+    def _call_llm(self, prompt):
+        if not self.use_llm:
+            raise Exception("LLM mode is disabled.")
+        url = "https://opencode.ai/zen/go/v1/chat/completions"
+        headers = {
+            "Authorization": f"Bearer {self.opencode_api_key}",
+            "Content-Type": "application/json"
+        }
+        payload = {
+            "model": "deepseek-v4-flash",
+            "messages": [{"role": "user", "content": prompt}],
+            "temperature": 0.3
+        }
+        try:
+            with httpx.Client(timeout=3.0) as client:
+                response = client.post(url, headers=headers, json=payload)
+                if response.status_code == 200:
+                    data = response.json()
+                    return data["choices"][0]["message"]["content"].strip()
+                else:
+                    if response.status_code in [401, 403]:
+                        logger.error(f"[Summarizer] Disabling LLM due to auth/credit error {response.status_code}")
+                        self.use_llm = False
+                    raise Exception(f"OpenCode API returned status {response.status_code}: {response.text}")
+        except (httpx.ConnectTimeout, httpx.ConnectError, httpx.ReadTimeout) as e:
+            logger.error(f"[Summarizer] Connection failed: {e}. Disabling LLM mode to prevent freezes.")
+            self.use_llm = False
+            raise e
 
     def summarize(self, event):
-        if self.use_llm and self._gemini_model:
+        if self.use_llm:
             return self._llm_summarize(event)
         return self._fallback_summarize(event)
 
@@ -71,8 +93,7 @@ Raw Log: {event.get('raw_log', 'No log available')}
 
 Summary:"""
 
-            response = self._gemini_model.generate_content(prompt)
-            summary = response.text.strip()
+            summary = self._call_llm(prompt)
             sentences = summary.split(". ")
             if len(sentences) > 3:
                 summary = ". ".join(sentences[:2]) + "."

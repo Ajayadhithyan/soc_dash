@@ -12,16 +12,18 @@ import {
   getAlerts, getAlertDetail, respondToAlert, sendChatMessage, trainModel,
   verifyAlert, checkHealth,
 } from './utils/api';
-import { Shield, TrendingUp, Cpu, Terminal } from 'lucide-react';
+import { Shield, TrendingUp, Cpu, Terminal, Target } from 'lucide-react';
 import type { AlertEvent, ChatMessage, SystemHealth } from './types';
 
 const AnalyticsCharts = lazy(() => import('./components/AnalyticsCharts'));
 const AICopilot = lazy(() => import('./components/AICopilot'));
 const SOARAuditLogs = lazy(() => import('./components/SOARAuditLogs'));
+const MitreHeatmap = lazy(() => import('./components/MitreHeatmap'));
 
 const TABS = [
   { id: 'triage' as const, label: 'Incident Triage', icon: Shield },
   { id: 'analytics' as const, label: 'Analytics & Trends', icon: TrendingUp },
+  { id: 'mitre' as const, label: 'MITRE ATT&CK', icon: Target },
   { id: 'copilot' as const, label: 'AI Copilot Lab', icon: Cpu },
   { id: 'audit' as const, label: 'SOAR Audit Trail', icon: Terminal },
 ];
@@ -356,6 +358,14 @@ function App() {
           </main>
         )}
 
+        {activeTab === 'mitre' && (
+          <ErrorBoundary>
+            <Suspense fallback={<div className="flex-grow flex items-center justify-center py-20"><div className="text-zinc-500 text-xs font-mono">LOADING MITRE MATRIX...</div></div>}>
+              <MitreHeatmap />
+            </Suspense>
+          </ErrorBoundary>
+        )}
+
         {activeTab === 'copilot' && (
           <main className="flex-grow px-6 py-6 grid grid-cols-1 xl:grid-cols-12 gap-6 min-h-0">
             <div className="xl:col-span-8 flex flex-col min-h-[500px]">
@@ -373,13 +383,13 @@ function App() {
               <div className="glassmorphism rounded-xl border border-cyber-card-border p-5 flex flex-col h-full">
                 <div className="flex items-center gap-2 border-b border-cyber-card-border/30 pb-3 mb-4">
                   <Cpu className="w-5 h-5 text-purple-500 animate-pulse" />
-                  <h2 className="text-sm font-bold font-cyber tracking-wider text-slate-200 uppercase">Zenith AI Copilot Lab</h2>
+                  <h2 className="text-sm font-bold font-cyber tracking-wider text-zinc-200 uppercase">Zenith AI Copilot Lab</h2>
                 </div>
-                <p className="text-[11px] text-slate-400 font-mono mb-4 leading-relaxed">
+                <p className="text-[11px] text-zinc-400 font-mono mb-4 leading-relaxed">
                   The Zenith AI Copilot leverages large language model intelligence to inspect your security logs catalog, explain attack methodologies, and design remediation actions.
                 </p>
                 <div className="flex-1 flex flex-col gap-3 font-mono text-[10px] overflow-y-auto">
-                  <div className="text-slate-500 font-bold uppercase tracking-wider">Suggested Threat Queries</div>
+                  <div className="text-zinc-500 font-bold uppercase tracking-wider">Suggested Threat Queries</div>
                   {[
                     { label: "Summarize High-Risk Incidents", prompt: "Summarize all high and critical risk alerts currently stored in our system and tell me the primary threat source." },
                     { label: "Identify Malware Activity", prompt: "Have there been any malware detections? Explain their impact and map them to MITRE ATT&CK techniques." },
@@ -390,10 +400,10 @@ function App() {
                     <button
                       key={idx}
                       onClick={() => handleSendChatMessage(item.prompt)}
-                      className="text-left w-full p-2.5 rounded border border-cyber-card-border hover:border-purple-500/50 bg-cyber-card/10 hover:bg-purple-500/5 text-slate-300 hover:text-white transition-all duration-200"
+                      className="text-left w-full p-2.5 rounded border border-cyber-card-border hover:border-purple-500/50 bg-cyber-card/10 hover:bg-purple-500/5 text-zinc-300 hover:text-white transition-all duration-200"
                     >
                       <div className="font-bold text-[11px] text-purple-500 uppercase mb-1">{item.label}</div>
-                      <div className="text-[10px] text-slate-400 italic line-clamp-2">"{item.prompt}"</div>
+                      <div className="text-[10px] text-zinc-400 italic line-clamp-2">"{item.prompt}"</div>
                     </button>
                   ))}
                 </div>

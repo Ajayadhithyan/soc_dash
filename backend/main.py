@@ -222,7 +222,8 @@ def read_root():
         "status": "online",
         "service": "SOC AI Dashboard API",
         "database": "connected" if container.db is not None else "disconnected",
-        "gemini_api": "configured" if bool(config.GEMINI_API_KEY) else "fallback_mode",
+        "gemini_api": "configured" if bool(config.OPENCODE_API_KEY) else "fallback_mode",
+        "opencode_api": "configured" if bool(config.OPENCODE_API_KEY) else "fallback_mode",
         "anomaly_detector": "trained" if ad and ad.is_trained else "untrained",
     }
 

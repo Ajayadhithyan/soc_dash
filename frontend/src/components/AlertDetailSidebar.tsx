@@ -41,6 +41,14 @@ function AlertDetailSidebar({ alert, onRespond, responseLogs, isResponding, onCl
     return 'bg-emerald-500';
   };
 
+  const actionButtonColor: Record<string, string> = {
+    rose: 'bg-rose-950/20 hover:bg-rose-900/30 border border-rose-900/30 hover:border-rose-700/80 text-rose-300 font-semibold py-2 px-3 rounded-lg flex items-center justify-between text-[11px] transition-colors disabled:opacity-40 cursor-pointer',
+    amber: 'bg-amber-950/20 hover:bg-amber-900/30 border border-amber-900/30 hover:border-amber-700/80 text-amber-300 font-semibold py-2 px-3 rounded-lg flex items-center justify-between text-[11px] transition-colors disabled:opacity-40 cursor-pointer',
+    blue: 'bg-blue-950/20 hover:bg-blue-900/30 border border-blue-900/30 hover:border-blue-700/80 text-blue-300 font-semibold py-2 px-3 rounded-lg flex items-center justify-between text-[11px] transition-colors disabled:opacity-40 cursor-pointer',
+    violet: 'bg-violet-950/20 hover:bg-violet-900/30 border border-violet-900/30 hover:border-violet-700/80 text-violet-300 font-semibold py-2 px-3 rounded-lg flex items-center justify-between text-[11px] transition-colors disabled:opacity-40 cursor-pointer',
+    emerald: 'bg-emerald-950/20 hover:bg-emerald-900/30 border border-emerald-900/30 hover:border-emerald-700/80 text-emerald-300 font-semibold py-2 px-3 rounded-lg flex items-center justify-between text-[11px] transition-colors disabled:opacity-40 cursor-pointer',
+  };
+
   const tabs = [
     { id: 'triage' as const, label: 'Triage', icon: Target },
     { id: 'mitre' as const, label: 'MITRE', icon: GitPullRequest },
@@ -268,7 +276,7 @@ function AlertDetailSidebar({ alert, onRespond, responseLogs, isResponding, onCl
                         key={action}
                         onClick={() => onRespond(action)}
                         disabled={isResponding !== null}
-                        className={`bg-${color}-950/20 hover:bg-${color}-900/30 border border-${color}-900/30 hover:border-${color}-700/80 text-${color}-300 font-semibold py-2 px-3 rounded-lg flex items-center justify-between text-[11px] transition-colors disabled:opacity-40 cursor-pointer`}
+                        className={actionButtonColor[color]}
                       >
                         <span className="flex items-center gap-2"><BtnIcon className="w-3.5 h-3.5" />{label}</span>
                         {isResponding === action && <RotateCw className="w-3.5 h-3.5 animate-spin" />}

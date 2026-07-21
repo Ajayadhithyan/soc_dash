@@ -32,13 +32,13 @@ const RISK_COLORS: Record<string, string> = {
 
 const EVENT_COLORS = ['#8b5cf6', '#06b6d4', '#f43f5e', '#f59e0b', '#10b981', '#ec4899', '#6366f1'];
 
-function ChartTooltip({ active, payload, label }: { active?: boolean; payload?: Array<{ value: number }>; label?: string }) {
+function ChartTooltip({ active, payload, label }: { active?: boolean; payload?: Array<{ value: number; name?: string }>; label?: string }) {
   if (active && payload && payload.length) {
     return (
       <div className="bg-zinc-950 border border-zinc-800 p-2.5 rounded-lg font-mono text-[11px] shadow-lg">
         <p className="text-zinc-400 font-semibold">{label}</p>
         <p className="text-emerald-400 mt-0.5">
-          Events: <span className="font-bold text-zinc-100">{payload[0].value}</span>
+          {payload[0].name || 'Events'}: <span className="font-bold text-zinc-100">{payload[0].value}</span>
         </p>
       </div>
     );
@@ -93,7 +93,7 @@ function AnalyticsCharts({ timeline, severity, sources, eventTypes, riskDistribu
               </div>
             )}
           </div>
-          <div className="flex-1 w-full text-slate-300">
+          <div className="flex-1 w-full text-zinc-300">
             {chartTimeline.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={chartTimeline} margin={{ top: 5, right: 5, left: -25, bottom: 0 }}>
@@ -124,7 +124,7 @@ function AnalyticsCharts({ timeline, severity, sources, eventTypes, riskDistribu
             <Flame className="w-4 h-4 text-amber-500" />
             <h3 className="text-xs font-semibold tracking-wider text-zinc-200 uppercase">Incidents by Severity</h3>
           </div>
-          <div className="flex-1 flex flex-col sm:flex-row items-center justify-center gap-4 text-slate-300">
+          <div className="flex-1 flex flex-col sm:flex-row items-center justify-center gap-4 text-zinc-300">
             {chartSeverity.length > 0 ? (
               <>
                 <div className="w-[130px] h-[130px]">
@@ -135,7 +135,7 @@ function AnalyticsCharts({ timeline, severity, sources, eventTypes, riskDistribu
                           <Cell key={`cell-${index}`} fill={SEV_COLORS[entry.name] || '#71717a'} />
                         ))}
                       </Pie>
-                      <Tooltip contentStyle={{ backgroundColor: '#09090b', border: '1px solid rgba(63, 63, 70, 0.4)', borderRadius: '8px', fontSize: '11px', fontFamily: 'JetBrains Mono, monospace' }} />
+                      <Tooltip content={<ChartTooltip />} />
                     </PieChart>
                   </ResponsiveContainer>
                 </div>
@@ -204,7 +204,7 @@ function AnalyticsCharts({ timeline, severity, sources, eventTypes, riskDistribu
                   <CartesianGrid strokeDasharray="3 3" stroke="rgba(63, 63, 70, 0.1)" horizontal={false} />
                   <XAxis type="number" stroke="#52525b" fontSize={9} tickLine={false} axisLine={false} allowDecimals={false} />
                   <YAxis type="category" dataKey="name" stroke="#52525b" fontSize={8} tickLine={false} axisLine={false} width={100} />
-                  <Tooltip contentStyle={{ backgroundColor: '#09090b', border: '1px solid rgba(63, 63, 70, 0.4)', borderRadius: '8px', fontSize: '11px', fontFamily: 'JetBrains Mono, monospace' }} />
+                  <Tooltip content={<ChartTooltip />} />
                   <Bar dataKey="value" radius={[0, 4, 4, 0]}>
                     {chartEventTypes.map((_, index) => (
                       <Cell key={`cell-${index}`} fill={EVENT_COLORS[index % EVENT_COLORS.length]} fillOpacity={0.8} />
@@ -226,7 +226,7 @@ function AnalyticsCharts({ timeline, severity, sources, eventTypes, riskDistribu
             <Gauge className="w-4 h-4 text-violet-500" />
             <h3 className="text-xs font-semibold tracking-wider text-zinc-200 uppercase">Risk Distribution</h3>
           </div>
-          <div className="flex-1 flex flex-col sm:flex-row items-center justify-center gap-4 text-slate-300">
+          <div className="flex-1 flex flex-col sm:flex-row items-center justify-center gap-4 text-zinc-300">
             {chartRisk.length > 0 ? (
               <>
                 <div className="w-[130px] h-[130px]">
@@ -237,7 +237,7 @@ function AnalyticsCharts({ timeline, severity, sources, eventTypes, riskDistribu
                           <Cell key={`cell-${index}`} fill={RISK_COLORS[entry.name] || '#71717a'} />
                         ))}
                       </Pie>
-                      <Tooltip contentStyle={{ backgroundColor: '#09090b', border: '1px solid rgba(63, 63, 70, 0.4)', borderRadius: '8px', fontSize: '11px', fontFamily: 'JetBrains Mono, monospace' }} />
+                      <Tooltip content={<ChartTooltip />} />
                     </PieChart>
                   </ResponsiveContainer>
                 </div>

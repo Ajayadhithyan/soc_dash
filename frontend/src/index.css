@@ -211,3 +211,41 @@ button, a, input, select { transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1); }
 .light-theme .animate-skeleton-pulse {
   background: linear-gradient(90deg, transparent 0%, rgba(200, 200, 210, 0.2) 50%, transparent 100%);
 }
+
+/* Severity badge overrides for better contrast in light mode */
+.light-theme .bg-rose-500\/10 { background-color: rgba(239, 68, 68, 0.15) !important; }
+.light-theme .bg-amber-500\/10 { background-color: rgba(245, 158, 11, 0.15) !important; }
+.light-theme .bg-blue-500\/10 { background-color: rgba(59, 130, 246, 0.15) !important; }
+.light-theme .bg-emerald-500\/10 { background-color: rgba(16, 185, 129, 0.15) !important; }
+.light-theme .bg-purple-500\/10 { background-color: rgba(139, 92, 246, 0.15) !important; }
+.light-theme .bg-rose-950\/20 { background-color: rgba(239, 68, 68, 0.1) !important; }
+.light-theme .bg-amber-950\/20 { background-color: rgba(245, 158, 11, 0.1) !important; }
+.light-theme .bg-blue-950\/20 { background-color: rgba(59, 130, 246, 0.1) !important; }
+.light-theme .bg-emerald-950\/20 { background-color: rgba(16, 185, 129, 0.1) !important; }
+.light-theme .bg-violet-950\/20 { background-color: rgba(139, 92, 246, 0.1) !important; }
+.light-theme .bg-rose-950\/15 { background-color: rgba(239, 68, 68, 0.08) !important; }
+.light-theme .bg-emerald-950\/15 { background-color: rgba(16, 185, 129, 0.08) !important; }
+.light-theme .bg-purple-950\/15 { background-color: rgba(139, 92, 246, 0.08) !important; }
+.light-theme .bg-blue-950\/15 { background-color: rgba(59, 130, 246, 0.08) !important; }
+.light-theme .bg-amber-950\/10 { background-color: rgba(245, 158, 11, 0.08) !important; }
+.light-theme .bg-rose-950\/30 { background-color: rgba(239, 68, 68, 0.12) !important; }
+.light-theme .bg-emerald-950\/30 { background-color: rgba(16, 185, 129, 0.12) !important; }
+
+/* Dark inset panels — use lighter backgrounds in light mode */
+.light-theme .bg-zinc-950\/60 { background-color: rgba(228, 228, 231, 0.5) !important; }
+.light-theme .bg-zinc-950\/40 { background-color: rgba(228, 228, 231, 0.4) !important; }
+.light-theme .bg-zinc-950\/80 { background-color: rgba(228, 228, 231, 0.7) !important; }
+
+/* Border adjustments for light mode — soften dark borders */
+.light-theme .border-zinc-800\/80 { border-color: rgba(212, 212, 216, 0.6) !important; }
+.light-theme .border-zinc-800\/60 { border-color: rgba(212, 212, 216, 0.5) !important; }
+.light-theme .border-zinc-800\/50 { border-color: rgba(212, 212, 216, 0.4) !important; }
+.light-theme .border-zinc-800\/40 { border-color: rgba(212, 212, 216, 0.35) !important; }
+.light-theme .border-zinc-700\/80 { border-color: rgba(161, 161, 170, 0.6) !important; }
+.light-theme .border-zinc-700\/20 { border-color: rgba(161, 161, 170, 0.25) !important; }
+.light-theme .border-zinc-700\/40 { border-color: rgba(161, 161, 170, 0.35) !important; }
+
+/* Recharts SVG element overrides for light mode */
+.light-theme svg text { fill: #52525b !important; }
+.light-theme svg line,
+.light-theme svg .recharts-cartesian-grid line { stroke: rgba(212, 212, 216, 0.5) !important; }

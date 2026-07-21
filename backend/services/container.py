@@ -45,8 +45,8 @@ class AppContainer:
 
         self._websocket_manager = ConnectionManager()
         self._anomaly_detector = AnomalyDetector()
-        self._mitre_mapper = MitreMapper(config.GEMINI_API_KEY)
-        self._summarizer = AlertSummarizer(config.GEMINI_API_KEY)
+        self._mitre_mapper = MitreMapper(config.OPENCODE_API_KEY)
+        self._summarizer = AlertSummarizer(config.OPENCODE_API_KEY)
         self._risk_scorer = RiskScorer(
             weight_cvss=config.WEIGHT_CVSS,
             weight_anomaly=config.WEIGHT_ANOMALY,
@@ -57,7 +57,7 @@ class AppContainer:
         self._sigma_engine = SigmaEngine()
         self._threat_intel = ThreatIntelService()
         self._playbook_engine = PlaybookEngine()
-        self._chat_assistant = ChatAssistant(self._db, config.GEMINI_API_KEY)
+        self._chat_assistant = ChatAssistant(self._db, config.OPENCODE_API_KEY)
         self._auth_service = AuthService(self._db)
 
     async def shutdown(self):

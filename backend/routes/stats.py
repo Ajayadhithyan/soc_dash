@@ -192,3 +192,89 @@ async def get_geo_data(db=Depends(get_db), current_user: dict = Depends(optional
             for doc in result
         ]
     }
+
+
+MITRE_TACTICS = [
+    "Reconnaissance",
+    "Resource Development",
+    "Initial Access",
+    "Execution",
+    "Persistence",
+    "Privilege Escalation",
+    "Defense Evasion",
+    "Credential Access",
+    "Discovery",
+    "Lateral Movement",
+    "Collection",
+    "Command and Control",
+    "Exfiltration",
+    "Impact",
+]
+
+
+@router.get("/mitre")
+async def get_mitre_heatmap(db=Depends(get_db), current_user: dict = Depends(optional_current_user)):
+    pipeline = [
+        {"$match": {"mitre": {"$exists": True, "$ne": None}}},
+        {"$group": {
+            "_id": {
+                "tactic": "$mitre.tactic",
+                "technique_id": "$mitre.technique_id",
+                "technique_name": "$mitre.technique_name",
+            },
+            "count": {"$sum": 1},
+            "severities": {"$push": "$severity"},
+            "sample_alerts": {"$first": "$id"},
+        }},
+        {"$sort": {"count": -1}},
+    ]
+    result = await db["security_events"].aggregate(pipeline).to_list(200)
+
+    technique_counts = {}
+    for doc in result:
+        tactics_raw = doc["_id"]["tactic"] or "Unknown"
+        tactic_list = [t.strip() for t in tactics_raw.split(",")]
+        technique_id = doc["_id"]["technique_id"]
+        technique_name = doc["_id"]["technique_name"]
+        count = doc["count"]
+        sev_dist = {}
+        for s in doc.get("severities", []):
+            sev_dist[s] = sev_dist.get(s, 0) + 1
+
+        for tactic in tactic_list:
+            key = f"{technique_id}|{tactic}"
+            if key not in technique_counts:
+                technique_counts[key] = {
+                    "technique_id": technique_id,
+                    "technique_name": technique_name,
+                    "tactic": tactic,
+                    "count": 0,
+                    "severity_breakdown": {},
+                }
+            technique_counts[key]["count"] += count
+            for s, c in sev_dist.items():
+                technique_counts[key]["severity_breakdown"][s] = (
+                    technique_counts[key]["severity_breakdown"].get(s, 0) + c
+                )
+
+    techniques = sorted(technique_counts.values(), key=lambda x: x["count"], reverse=True)
+
+    total = sum(t["count"] for t in techniques)
+    max_count = max((t["count"] for t in techniques), default=1)
+
+    tactic_totals = {}
+    for t in techniques:
+        tactic_totals[t["tactic"]] = tactic_totals.get(t["tactic"], 0) + t["count"]
+
+    technique_totals = {}
+    for t in techniques:
+        technique_totals[t["technique_id"]] = technique_totals.get(t["technique_id"], 0) + t["count"]
+
+    return {
+        "tactics": MITRE_TACTICS,
+        "techniques": techniques,
+        "tactic_totals": tactic_totals,
+        "technique_totals": technique_totals,
+        "total_mapped_alerts": total,
+        "max_count": max_count,
+    }

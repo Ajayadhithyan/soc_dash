@@ -6,6 +6,7 @@ Google Gemini (zero-shot classification) or a deterministic fallback table.
 
 import os
 import logging
+import httpx
 
 logger = logging.getLogger("soc_backend")
 
@@ -54,27 +55,48 @@ MITRE_MAPPINGS = {
 
 
 class MitreMapper:
-    def __init__(self, gemini_api_key=None):
-        self.gemini_api_key = gemini_api_key or os.getenv("GEMINI_API_KEY", "")
-        self.use_llm = bool(self.gemini_api_key)
-        self._gemini_model = None
+    def __init__(self, opencode_api_key=None):
+        self.opencode_api_key = opencode_api_key or os.getenv("OPENCODE_API_KEY", "")
+        self.use_llm = bool(self.opencode_api_key)
 
         if self.use_llm:
-            try:
-                import google.generativeai as genai
-                genai.configure(api_key=self.gemini_api_key)
-                self._gemini_model = genai.GenerativeModel("gemini-2.5-flash")
-                logger.info("[MITRE] Gemini API configured for zero-shot classification.")
-            except Exception as e:
-                logger.error(f"[MITRE] Gemini init failed: {e}. Using fallback mapping.")
-                self.use_llm = False
+            logger.info("[MITRE] OpenCode API configured for zero-shot classification.")
+
+    def _call_llm(self, prompt):
+        if not self.use_llm:
+            raise Exception("LLM mode is disabled.")
+        url = "https://opencode.ai/zen/go/v1/chat/completions"
+        headers = {
+            "Authorization": f"Bearer {self.opencode_api_key}",
+            "Content-Type": "application/json"
+        }
+        payload = {
+            "model": "deepseek-v4-flash",
+            "messages": [{"role": "user", "content": prompt}],
+            "temperature": 0.2
+        }
+        try:
+            with httpx.Client(timeout=3.0) as client:
+                response = client.post(url, headers=headers, json=payload)
+                if response.status_code == 200:
+                    data = response.json()
+                    return data["choices"][0]["message"]["content"].strip()
+                else:
+                    if response.status_code in [401, 403]:
+                        logger.error(f"[MITRE] Disabling LLM due to auth/credit error {response.status_code}")
+                        self.use_llm = False
+                    raise Exception(f"OpenCode API returned status {response.status_code}: {response.text}")
+        except (httpx.ConnectTimeout, httpx.ConnectError, httpx.ReadTimeout) as e:
+            logger.error(f"[MITRE] Connection failed: {e}. Disabling LLM mode to prevent freezes.")
+            self.use_llm = False
+            raise e
 
     def map_event(self, event):
         event_type = event.get("event_type", "")
 
         if event_type in MITRE_MAPPINGS:
             mapping = MITRE_MAPPINGS[event_type].copy()
-            if self.use_llm and self._gemini_model:
+            if self.use_llm:
                 try:
                     enrichment = self._llm_enrich(event)
                     if enrichment:
@@ -83,7 +105,7 @@ class MitreMapper:
                     pass
             return mapping
 
-        if self.use_llm and self._gemini_model:
+        if self.use_llm:
             return self._llm_classify(event)
 
         return {
@@ -109,9 +131,7 @@ Technique Name: [name]
 Tactic: [tactic name]
 Description: [one sentence description]"""
 
-            response = self._gemini_model.generate_content(prompt)
-            text = response.text.strip()
-
+            text = self._call_llm(prompt)
             lines = text.split("\n")
             result = {
                 "technique_id": "T1059",
@@ -151,7 +171,6 @@ Description: [one sentence description]"""
 Event: {event.get('event_type', '')}
 Log: {event.get('raw_log', '')}"""
 
-            response = self._gemini_model.generate_content(prompt)
-            return response.text.strip()
+            return self._call_llm(prompt)
         except Exception:
             return None

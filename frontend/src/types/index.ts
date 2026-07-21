@@ -172,6 +172,23 @@ export interface RiskDistribution {
   count: number;
 }
 
+export interface MitreTechniqueData {
+  technique_id: string;
+  technique_name: string;
+  tactic: string;
+  count: number;
+  severity_breakdown: Record<string, number>;
+}
+
+export interface MitreHeatmapData {
+  tactics: string[];
+  techniques: MitreTechniqueData[];
+  tactic_totals: Record<string, number>;
+  technique_totals: Record<string, number>;
+  total_mapped_alerts: number;
+  max_count: number;
+}
+
 export interface User {
   username: string;
   role: string;

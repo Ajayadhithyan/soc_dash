@@ -10,7 +10,7 @@ load_dotenv(override=True)
 
 MONGODB_URI = os.getenv("MONGODB_URI", "mongodb://localhost:27017/")
 DB_NAME = os.getenv("DB_NAME", "soc_ai_dashboard")
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
+OPENCODE_API_KEY = os.getenv("OPENCODE_API_KEY", "sk-3Ev6Mvwe8hzVJ5q7u9w5WKtu0KHrE7H4vw2z0ia5GObw5XVHpidDSDI3O6jdS9A1")
 EVENT_GENERATION_INTERVAL = int(os.getenv("EVENT_INTERVAL", "4"))
 CORS_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:5173,http://localhost:3000").split(",")
 

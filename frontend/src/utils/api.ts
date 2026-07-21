@@ -9,6 +9,7 @@ import type {
   SystemHealth,
   EventTypeDistribution,
   RiskDistribution,
+  MitreHeatmapData,
 } from '../types';
 
 export interface TimelineData {
@@ -89,6 +90,11 @@ export const getGeoData = async (): Promise<{ geo_threats: GeoData[] }> => {
 
 export const getRiskDistribution = async (): Promise<{ risk_distribution: RiskDistribution[] }> => {
   const response = await api.get('/api/stats/risk-distribution');
+  return response.data;
+};
+
+export const getMitreHeatmap = async (): Promise<MitreHeatmapData> => {
+  const response = await api.get('/api/stats/mitre');
   return response.data;
 };
 

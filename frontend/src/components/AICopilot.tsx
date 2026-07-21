@@ -13,12 +13,22 @@ function AICopilot({ onSendMessage, chatHistory, isSendingMessage }: AICopilotPr
   const [input, setInput] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+
   const quickQuestions = [
-    'Recommend triage next steps',
-    'What is the top threat type?',
-    'Any critical alerts in the system?',
-    'List all unique attacking IPs',
+    'Give me a full executive summary',
+    'How many critical alerts are there?',
+    'What are the top attacking IPs?',
+    'Which users are being targeted?',
+    'Show me recent malware events',
+    'What MITRE techniques are being used?',
+    'Show me correlated attack campaigns',
+    'What are the SOAR playbook rules?',
+    'How does the anomaly detection model work?',
+    'Where are the attacks coming from geographically?',
+    'What should I do next? Recommend actions',
+    'Explain the risk scoring formula',
   ];
+
 
   const handleSend = (e: React.FormEvent) => {
     e.preventDefault();
@@ -129,11 +139,11 @@ function AICopilot({ onSendMessage, chatHistory, isSendingMessage }: AICopilotPr
         </div>
         <div className="flex items-center gap-3">
           {chatHistory.length > 0 && (
-            <button onClick={handleExportTranscript} className="text-[9px] text-zinc-400 hover:text-white border border-zinc-850 hover:border-zinc-700 bg-zinc-950/40 px-2 py-0.5 rounded flex items-center gap-1 cursor-pointer transition-colors" title="Download Incident Report">
+            <button onClick={handleExportTranscript} className="text-[9px] text-zinc-400 hover:text-white border border-zinc-700 hover:border-zinc-600 bg-zinc-950/40 px-2 py-0.5 rounded flex items-center gap-1 cursor-pointer transition-colors" title="Download Incident Report">
               <FileText className="w-3 h-3 text-purple-400" />Export Report
             </button>
           )}
-          <div className="font-mono text-[9px] text-zinc-500">Model: Gemini 2.5</div>
+          <div className="font-mono text-[9px] text-zinc-500">Model: Zenith AI Engine v2</div>
         </div>
       </div>
 
