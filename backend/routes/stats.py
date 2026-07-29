@@ -7,14 +7,14 @@ from fastapi import APIRouter, Depends, Query
 from datetime import datetime, timedelta
 from collections import Counter
 
-from backend.services.auth import optional_current_user
+from backend.services.auth import get_current_user
 from backend.services.container import get_db
 
 router = APIRouter(prefix="/api/stats", tags=["stats"])
 
 
 @router.get("/overview")
-async def get_overview(db=Depends(get_db), current_user: dict = Depends(optional_current_user)):
+async def get_overview(db=Depends(get_db), current_user: dict = Depends(get_current_user)):
     total = await db["security_events"].count_documents({})
     critical = await db["security_events"].count_documents({"severity": "CRITICAL"})
     high = await db["security_events"].count_documents({"severity": "HIGH"})
@@ -50,7 +50,7 @@ async def get_overview(db=Depends(get_db), current_user: dict = Depends(optional
 
 
 @router.get("/severity")
-async def get_severity_distribution(db=Depends(get_db), current_user: dict = Depends(optional_current_user)):
+async def get_severity_distribution(db=Depends(get_db), current_user: dict = Depends(get_current_user)):
     pipeline = [
         {"$group": {"_id": "$severity", "count": {"$sum": 1}}},
         {"$sort": {"count": -1}},
@@ -69,7 +69,7 @@ async def get_severity_distribution(db=Depends(get_db), current_user: dict = Dep
 
 
 @router.get("/event-types")
-async def get_event_type_distribution(db=Depends(get_db), current_user: dict = Depends(optional_current_user)):
+async def get_event_type_distribution(db=Depends(get_db), current_user: dict = Depends(get_current_user)):
     pipeline = [
         {"$group": {"_id": "$event_type", "count": {"$sum": 1}}},
         {"$sort": {"count": -1}},
@@ -87,7 +87,7 @@ async def get_event_type_distribution(db=Depends(get_db), current_user: dict = D
 async def get_timeline(
     db=Depends(get_db),
     range: str = Query("6h", pattern="^(1h|6h|24h|7d)$"),
-    current_user: dict = Depends(optional_current_user),
+    current_user: dict = Depends(get_current_user),
 ):
     range_map = {
         "1h": timedelta(hours=1),
@@ -124,7 +124,7 @@ async def get_timeline(
 async def get_top_sources(
     db=Depends(get_db),
     limit: int = Query(10, ge=1, le=50),
-    current_user: dict = Depends(optional_current_user),
+    current_user: dict = Depends(get_current_user),
 ):
     pipeline = [
         {"$group": {
@@ -153,7 +153,7 @@ async def get_top_sources(
 
 
 @router.get("/risk-distribution")
-async def get_risk_distribution(db=Depends(get_db), current_user: dict = Depends(optional_current_user)):
+async def get_risk_distribution(db=Depends(get_db), current_user: dict = Depends(get_current_user)):
     pipeline = [
         {"$match": {"risk_label": {"$exists": True}}},
         {"$group": {"_id": "$risk_label", "count": {"$sum": 1}}},
@@ -169,7 +169,7 @@ async def get_risk_distribution(db=Depends(get_db), current_user: dict = Depends
 
 
 @router.get("/geo")
-async def get_geo_data(db=Depends(get_db), current_user: dict = Depends(optional_current_user)):
+async def get_geo_data(db=Depends(get_db), current_user: dict = Depends(get_current_user)):
     pipeline = [
         {"$match": {"geo": {"$exists": True}}},
         {"$group": {
@@ -213,7 +213,7 @@ MITRE_TACTICS = [
 
 
 @router.get("/mitre")
-async def get_mitre_heatmap(db=Depends(get_db), current_user: dict = Depends(optional_current_user)):
+async def get_mitre_heatmap(db=Depends(get_db), current_user: dict = Depends(get_current_user)):
     pipeline = [
         {"$match": {"mitre": {"$exists": True, "$ne": None}}},
         {"$group": {

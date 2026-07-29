@@ -11,6 +11,8 @@ import logging
 from datetime import datetime, timedelta
 from typing import Optional
 
+import bcrypt
+
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
@@ -42,7 +44,7 @@ def _create_jwt(payload: dict) -> str:
     return f"{header_b64}.{payload_b64}.{signature}"
 
 
-def _verify_jwt(token: str) -> Optional[dict]:
+def verify_jwt(token: str) -> Optional[dict]:
     import base64
     try:
         parts = token.split(".")
@@ -77,6 +79,17 @@ def create_access_token(username: str, role: str = "analyst") -> str:
     return _create_jwt(payload)
 
 
+def hash_password(password: str) -> str:
+    # bcrypt expects bytes
+    salt = bcrypt.gensalt()
+    hashed = bcrypt.hashpw(password.encode("utf-8"), salt)
+    return hashed.decode("utf-8")
+
+
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    return bcrypt.checkpw(plain_password.encode("utf-8"), hashed_password.encode("utf-8"))
+
+
 async def get_current_user(credentials: Optional[HTTPAuthorizationCredentials] = Depends(security)):
     if credentials is None:
         raise HTTPException(
@@ -85,7 +98,7 @@ async def get_current_user(credentials: Optional[HTTPAuthorizationCredentials] =
             headers={"WWW-Authenticate": "Bearer"},
         )
     token = credentials.credentials
-    payload = _verify_jwt(token)
+    payload = verify_jwt(token)
     if payload is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -98,14 +111,17 @@ async def get_current_user(credentials: Optional[HTTPAuthorizationCredentials] =
 async def optional_current_user(credentials: Optional[HTTPAuthorizationCredentials] = Depends(security)):
     if credentials is None:
         return None
-    payload = _verify_jwt(credentials.credentials)
+    payload = verify_jwt(credentials.credentials)
     return payload
 
 
+# In a production system, users should be stored in a database with hashed passwords.
+# For demonstration, we keep a small in-memory set with hashed passwords.
 USERS_DB = {
-    "admin": {"password": "admin123", "role": "admin"},
-    "analyst": {"password": "analyst123", "role": "analyst"},
-    "viewer": {"password": "viewer123", "role": "viewer"},
+    "admin": {"password": hash_password("admin123"), "role": "admin"},
+    "senior_analyst": {"password": hash_password("senior123"), "role": "senior_analyst"},
+    "analyst": {"password": hash_password("analyst123"), "role": "analyst"},
+    "viewer": {"password": hash_password("viewer123"), "role": "viewer"},
 }
 
 
@@ -115,7 +131,7 @@ class AuthService:
 
     async def authenticate(self, username: str, password: str) -> Optional[dict]:
         user = USERS_DB.get(username)
-        if user and user["password"] == password:
+        if user and verify_password(password, user["password"]):
             return {"username": username, "role": user["role"]}
         return None
 

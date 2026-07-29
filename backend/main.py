@@ -18,6 +18,7 @@ from backend import config
 from backend.services.container import container
 from backend.services.rate_limiter import RateLimitMiddleware
 from backend.routes import alerts, chat, stats, audit, auth
+from backend.services.auth import verify_jwt
 from backend.services.alert_processor import generate_event, process_event
 
 # Structured JSON logging
@@ -271,6 +272,27 @@ async def train_feedback_model():
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     ws_mgr = container.websocket_manager
+    # Extract token from query params or headers
+    token = None
+    # Try query param
+    query_params = dict(query_params) if (query_params := websocket.query_params) else {}
+    token = query_params.get("token")
+    if not token:
+        # Try Authorization header
+        auth_header = websocket.headers.get("authorization")
+        if auth_header and auth_header.startswith("Bearer "):
+            token = auth_header[7:]
+    if not token:
+        await websocket.close(code=4001, reason="Authentication token missing")
+        return
+    # Verify token
+    payload = verify_jwt(token)
+    if payload is None:
+        await websocket.close(code=4002, reason="Invalid or expired token")
+        return
+    # Optionally
+    # Attach user info to websocket for possible use
+    websocket.user = payload
     await ws_mgr.connect(websocket)
     try:
         while True:

@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
 
 from backend.models.schemas import ChatRequest, ChatResponse
-from backend.services.auth import optional_current_user
+from backend.services.auth import get_current_user
 from backend.services.container import get_chat_assistant
 
 router = APIRouter(prefix="/api/chat", tags=["chat"])
@@ -17,7 +17,7 @@ router = APIRouter(prefix="/api/chat", tags=["chat"])
 async def chat(
     request: ChatRequest,
     chat_assistant=Depends(get_chat_assistant),
-    current_user: dict = Depends(optional_current_user),
+    current_user: dict = Depends(get_current_user),
 ):
     if chat_assistant is None:
         return ChatResponse(

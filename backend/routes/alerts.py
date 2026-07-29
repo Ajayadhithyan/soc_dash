@@ -9,7 +9,7 @@ from datetime import datetime
 from fastapi import APIRouter, Depends, Query
 
 from backend.models.schemas import AutoResponseResult
-from backend.services.auth import optional_current_user
+from backend.services.auth import get_current_user
 from backend.services.container import get_db, get_container, AppContainer
 
 logger = logging.getLogger("soc_backend")
@@ -25,7 +25,7 @@ async def get_alerts(
     event_type: str = Query(None),
     sort_by: str = Query("timestamp"),
     sort_order: str = Query("desc"),
-    current_user: dict = Depends(optional_current_user),
+    current_user: dict = Depends(get_current_user),
 ):
     query = {}
     if severity:
@@ -52,7 +52,7 @@ async def get_alerts(
 async def get_recent_alerts(
     db=Depends(get_db),
     limit: int = Query(20, ge=1, le=100),
-    current_user: dict = Depends(optional_current_user),
+    current_user: dict = Depends(get_current_user),
 ):
     cursor = db["security_events"].find({}, {"_id": 0}).sort("timestamp", -1).limit(limit)
     alerts = []
@@ -67,7 +67,7 @@ async def get_recent_alerts(
 async def get_alert_detail(
     alert_id: str,
     db=Depends(get_db),
-    current_user: dict = Depends(optional_current_user),
+    current_user: dict = Depends(get_current_user),
 ):
     parts = alert_id.split("_", 1)
     query = {}
@@ -91,8 +91,14 @@ async def auto_respond(
     action: str = Query(...),
     db=Depends(get_db),
     container: AppContainer = Depends(get_container),
-    current_user: dict = Depends(optional_current_user),
+    current_user: dict = Depends(get_current_user),
 ):
+    # Role-based access control for destructive actions
+    if action in ["block_ip", "quarantine_host"]:
+        user_role = current_user.get("role", "analyst")
+        if user_role not in ["admin", "senior_analyst"]:
+            return {"success": False, "message": f"Insufficient permissions to perform action: {action}"}
+
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     parts = alert_id.split("_", 1)
     src_ip = parts[1] if len(parts) == 2 else "unknown"
@@ -192,7 +198,7 @@ async def verify_alert(
     alert_id: str,
     status: str = Query(...),
     db=Depends(get_db),
-    current_user: dict = Depends(optional_current_user),
+    current_user: dict = Depends(get_current_user),
 ):
     if status.upper() not in ["TRUE_POSITIVE", "FALSE_POSITIVE"]:
         return {"success": False, "message": f"Invalid verification status: {status}"}

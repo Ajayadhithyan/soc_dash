@@ -5,7 +5,7 @@ Provides endpoints for retrieving action logs executed on the platform.
 
 from fastapi import APIRouter, Depends, Query
 
-from backend.services.auth import optional_current_user
+from backend.services.auth import get_current_user
 from backend.services.container import get_db
 
 router = APIRouter(prefix="/api/audit", tags=["audit"])
@@ -15,7 +15,7 @@ router = APIRouter(prefix="/api/audit", tags=["audit"])
 async def get_audit_logs(
     db=Depends(get_db),
     limit: int = Query(50, ge=1, le=200),
-    current_user: dict = Depends(optional_current_user),
+    current_user: dict = Depends(get_current_user),
 ):
     cursor = db["audit_logs"].find({}, {"_id": 0}).sort("timestamp", -1).limit(limit)
     logs = []
