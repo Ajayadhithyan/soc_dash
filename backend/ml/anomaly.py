@@ -6,6 +6,7 @@ Scores incoming security events for statistical anomalies.
 import os
 import json
 import logging
+import pickle
 import numpy as np
 from sklearn.ensemble import IsolationForest
 from sklearn.preprocessing import StandardScaler
@@ -38,7 +39,7 @@ class AnomalyDetector:
                 "saved_models"
             )
         self.model_dir = model_dir
-        self.model_path = os.path.join(self.model_dir, "anomaly_detector.json")
+        self.model_path = os.path.join(self.model_dir, "anomaly_detector.pkl")
 
         self.model = IsolationForest(
             contamination=contamination,
@@ -53,32 +54,13 @@ class AnomalyDetector:
     def save(self):
         try:
             os.makedirs(self.model_dir, exist_ok=True)
-            model_params = {
-                "contamination": self.model.contamination,
-                "n_estimators": self.model.n_estimators,
-                "random_state": self.model.random_state,
-                "is_trained": self.is_trained,
-                "offset_": float(self.model.offset_) if hasattr(self.model, "offset_") else 0.0,
-            }
-            if hasattr(self.model, "estimators_samples_"):
-                model_params["estimators_samples_"] = [
-                    s.tolist() for s in self.model.estimators_samples_
-                ]
-            scaler_params = {}
-            if hasattr(self.scaler, "mean_"):
-                scaler_params["mean_"] = self.scaler.mean_.tolist()
-                scaler_params["scale_"] = self.scaler.scale_.tolist()
-                scaler_params["var_"] = self.scaler.var_.tolist()
-            if hasattr(self.scaler, "n_features_in_"):
-                scaler_params["n_features_in_"] = self.scaler.n_features_in_
-
             data = {
-                "model": model_params,
-                "scaler": scaler_params,
+                "model": self.model,
+                "scaler": self.scaler,
                 "is_trained": self.is_trained,
             }
-            with open(self.model_path, "w", encoding="utf-8") as f:
-                json.dump(data, f, cls=_NumpyEncoder)
+            with open(self.model_path, "wb") as f:
+                pickle.dump(data, f)
             logger.info(f"[Anomaly] Model saved to {self.model_path}")
         except Exception as e:
             logger.error(f"[Anomaly] Failed to save model: {e}")
@@ -86,12 +68,14 @@ class AnomalyDetector:
     def load(self):
         if os.path.exists(self.model_path):
             try:
-                with open(self.model_path, "r", encoding="utf-8") as f:
-                    data = json.load(f)
+                with open(self.model_path, "rb") as f:
+                    data = pickle.load(f)
+                self.model = data.get("model")
+                self.scaler = data.get("scaler")
                 self.is_trained = data.get("is_trained", False)
-                logger.info(f"[Anomaly] Model metadata loaded from {self.model_path}")
+                logger.info(f"[Anomaly] Model loaded from {self.model_path}")
             except Exception as e:
-                logger.error(f"[Anomaly] Failed to load model metadata: {e}")
+                logger.error(f"[Anomaly] Failed to load model: {e}")
 
     def _extract_features(self, event):
         ts = event.get("timestamp", "")
