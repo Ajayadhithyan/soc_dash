@@ -18,12 +18,15 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
     setError('');
     setIsLoading(true);
     try {
-      const data = await login(username, password);
+      const data = await login(username.trim(), password.trim());
       setAuthToken(data.access_token);
       localStorage.setItem('soc_token', data.access_token);
       onLogin(data.access_token);
-    } catch {
-      setError('Invalid username or password. Try admin/admin123');
+    } catch (err: any) {
+      console.error('Login error details:', err);
+      const detail = err.response?.data?.detail;
+      const msg = detail || err.message || 'Invalid username or password';
+      setError(`Login failed: ${msg}. Contact your administrator if you need access.`);
     } finally {
       setIsLoading(false);
     }
@@ -55,7 +58,7 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               className="w-full bg-zinc-950/60 border border-zinc-800 text-zinc-200 font-mono text-sm rounded-lg px-3 py-2 focus:outline-none focus:border-zinc-700 transition-colors"
-              placeholder="admin"
+              placeholder="Username"
               required
             />
           </div>
@@ -68,7 +71,7 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="w-full bg-zinc-950/60 border border-zinc-800 text-zinc-200 font-mono text-sm rounded-lg px-3 py-2 pr-10 focus:outline-none focus:border-zinc-700 transition-colors"
-                placeholder="admin123"
+                placeholder="Password"
                 required
               />
               <button
@@ -90,7 +93,7 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
           </button>
 
           <p className="text-[10px] text-zinc-600 text-center mt-1">
-            Demo: admin / admin123
+            Production access is controlled by configured SOC user accounts.
           </p>
         </form>
       </div>

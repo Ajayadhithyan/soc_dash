@@ -5,6 +5,7 @@ Provides endpoints for listing, filtering, and responding to security alerts.
 
 import random
 import logging
+import uuid
 from datetime import datetime
 from fastapi import APIRouter, Depends, Query
 
@@ -14,6 +15,30 @@ from backend.services.container import get_db, get_container, AppContainer
 
 logger = logging.getLogger("soc_backend")
 router = APIRouter(prefix="/api/alerts", tags=["alerts"])
+
+
+def _public_alert(doc: dict) -> dict:
+    doc = dict(doc)
+    if "_id" in doc:
+        doc.setdefault("id", str(doc["_id"]))
+        doc.pop("_id", None)
+    doc.setdefault("id", str(uuid.uuid4()))
+    return doc
+
+
+async def _find_alert(db, alert_id: str, projection: dict | None = None):
+    doc = await db["security_events"].find_one({"id": alert_id}, projection)
+    if doc:
+        return doc
+    try:
+        from bson import ObjectId
+
+        doc = await db["security_events"].find_one({"_id": ObjectId(alert_id)}, projection)
+        if doc:
+            return doc
+    except Exception:
+        pass
+    return await db["security_events"].find_one({"timestamp": alert_id}, projection)
 
 
 @router.get("")
@@ -34,16 +59,17 @@ async def get_alerts(
         query["event_type"] = event_type.upper()
 
     sort_direction = -1 if sort_order == "desc" else 1
+    allowed_sort_fields = {"timestamp", "severity", "event_type", "src_ip", "risk_score"}
+    if sort_by not in allowed_sort_fields:
+        sort_by = "timestamp"
     skip = (page - 1) * per_page
 
     total = await db["security_events"].count_documents(query)
-    cursor = db["security_events"].find(query, {"_id": 0}).sort(sort_by, sort_direction).skip(skip).limit(per_page)
+    cursor = db["security_events"].find(query).sort(sort_by, sort_direction).skip(skip).limit(per_page)
 
     alerts = []
     async for doc in cursor:
-        if "id" not in doc:
-            doc["id"] = doc.get("timestamp", "") + "_" + doc.get("src_ip", "")
-        alerts.append(doc)
+        alerts.append(_public_alert(doc))
 
     return {"alerts": alerts, "total": total, "page": page, "per_page": per_page}
 
@@ -54,12 +80,10 @@ async def get_recent_alerts(
     limit: int = Query(20, ge=1, le=100),
     current_user: dict = Depends(get_current_user),
 ):
-    cursor = db["security_events"].find({}, {"_id": 0}).sort("timestamp", -1).limit(limit)
+    cursor = db["security_events"].find({}).sort("timestamp", -1).limit(limit)
     alerts = []
     async for doc in cursor:
-        if "id" not in doc:
-            doc["id"] = doc.get("timestamp", "") + "_" + doc.get("src_ip", "")
-        alerts.append(doc)
+        alerts.append(_public_alert(doc))
     return {"alerts": alerts, "count": len(alerts)}
 
 
@@ -69,18 +93,11 @@ async def get_alert_detail(
     db=Depends(get_db),
     current_user: dict = Depends(get_current_user),
 ):
-    parts = alert_id.split("_", 1)
-    query = {}
-    if len(parts) == 2:
-        query = {"timestamp": parts[0], "src_ip": parts[1]}
-    else:
-        query = {"timestamp": alert_id}
-
-    doc = await db["security_events"].find_one(query, {"_id": 0})
+    doc = await _find_alert(db, alert_id)
     if not doc:
         return {"error": "Alert not found"}
 
-    doc["id"] = alert_id
+    doc = _public_alert(doc)
     doc["playbook"] = _get_playbook(doc.get("event_type", ""))
     return doc
 
@@ -100,8 +117,8 @@ async def auto_respond(
             return {"success": False, "message": f"Insufficient permissions to perform action: {action}"}
 
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    parts = alert_id.split("_", 1)
-    src_ip = parts[1] if len(parts) == 2 else "unknown"
+    alert_doc = await _find_alert(db, alert_id)
+    src_ip = alert_doc.get("src_ip", "unknown") if alert_doc else "unknown"
 
     responses = {
         "block_ip": {
@@ -170,11 +187,8 @@ async def auto_respond(
     if not result:
         return {"success": False, "message": f"Unknown action: {action}"}
 
-    if len(parts) == 2:
-        await db["security_events"].update_one(
-            {"timestamp": parts[0], "src_ip": parts[1]},
-            {"$set": {"auto_response": result}},
-        )
+    if alert_doc:
+        await db["security_events"].update_one({"_id": alert_doc["_id"]}, {"$set": {"auto_response": result}})
 
     analyst_user = current_user.get("sub", "analyst") if current_user else "anonymous"
     audit_entry = {
@@ -203,10 +217,10 @@ async def verify_alert(
     if status.upper() not in ["TRUE_POSITIVE", "FALSE_POSITIVE"]:
         return {"success": False, "message": f"Invalid verification status: {status}"}
 
-    parts = alert_id.split("_", 1)
-    if len(parts) == 2:
+    alert_doc = await _find_alert(db, alert_id)
+    if alert_doc:
         res = await db["security_events"].update_one(
-            {"timestamp": parts[0], "src_ip": parts[1]},
+            {"_id": alert_doc["_id"]},
             {"$set": {"analyst_verification": status.upper()}},
         )
         if res.matched_count > 0:

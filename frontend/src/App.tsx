@@ -6,11 +6,12 @@ import ThreatHotspots from './components/ThreatHotspots';
 import AlertsTable from './components/AlertsTable';
 import AlertDetailSidebar from './components/AlertDetailSidebar';
 import ErrorBoundary from './components/ErrorBoundary';
+import LoginPage from './components/LoginPage';
 import { useToast } from './components/Toast';
 import {
   getOverview, getSeverityDistribution, getTimeline, getTopSources, getGeoData,
   getAlerts, getAlertDetail, respondToAlert, sendChatMessage, trainModel,
-  verifyAlert, checkHealth,
+  verifyAlert, checkHealth, setAuthToken,
 } from './utils/api';
 import { Shield, TrendingUp, Cpu, Terminal, Target } from 'lucide-react';
 import type { AlertEvent, ChatMessage, SystemHealth } from './types';
@@ -32,6 +33,19 @@ function App() {
   const navigate = useNavigate();
   const location = useLocation();
   const { addToast } = useToast();
+
+  const [token, setToken] = useState<string | null>(() => {
+    const saved = localStorage.getItem('soc_token');
+    if (saved) {
+      setAuthToken(saved);
+    }
+    return saved;
+  });
+
+  useEffect(() => {
+    setAuthToken(token);
+  }, [token]);
+
   const tabFromPath = location.pathname.replace('/', '') || 'triage';
   const validTab = TABS.find(t => t.id === tabFromPath)?.id || 'triage';
   const [activeTab, setActiveTab] = useState(validTab);
@@ -133,9 +147,10 @@ function App() {
     let reconnectAttempts = 0;
 
     const connectWS = () => {
+      if (!token) return;
       setWsStatus('connecting');
       const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      const wsUrl = `${protocol}//${window.location.host}/ws`;
+      const wsUrl = `${protocol}//${window.location.host}/ws?token=${token}`;
       socket = new WebSocket(wsUrl);
 
       socket.onopen = () => {
@@ -179,7 +194,7 @@ function App() {
       if (socket) { socket.onclose = null; socket.onerror = null; socket.close(); }
       if (reconnectTimeout) clearTimeout(reconnectTimeout);
     };
-  }, [perPage, fetchDashboardStats]);
+  }, [perPage, fetchDashboardStats, token]);
 
   const handleAlertSelect = useCallback(async (alertSummary: AlertEvent) => {
     try {
@@ -269,6 +284,10 @@ function App() {
     setPage(newFilters.page || 1);
   }, []);
 
+  if (!token) {
+    return <LoginPage onLogin={(t) => setToken(t)} />;
+  }
+
   return (
     <ErrorBoundary>
       <div className="min-h-screen bg-cyber-bg cyber-grid-bg text-zinc-200 font-sans flex flex-col antialiased">
@@ -277,6 +296,10 @@ function App() {
           systemHealth={systemHealth}
           onRefresh={handleManualRefresh}
           onTrainModel={handleTrainModel}
+          onLogout={() => {
+            localStorage.removeItem('soc_token');
+            setToken(null);
+          }}
         />
 
         <div className="px-6 py-3 border-b border-zinc-800 bg-zinc-950/80 flex flex-wrap gap-2 text-xs z-10">

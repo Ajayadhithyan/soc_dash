@@ -38,12 +38,23 @@ export interface VerifyResponse {
 }
 
 const api = axios.create({
-  baseURL: '',
+  baseURL: import.meta.env.VITE_API_BASE_URL || '',
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json',
   },
 });
+
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response && error.response.status === 401) {
+      localStorage.removeItem('soc_token');
+      window.location.href = '/';
+    }
+    return Promise.reject(error);
+  }
+);
 
 export const setAuthToken = (token: string | null) => {
   if (token) {

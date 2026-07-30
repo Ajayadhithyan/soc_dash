@@ -7,18 +7,19 @@ import asyncio
 import logging
 import json
 import sys
+import uuid
 from contextlib import asynccontextmanager
 from datetime import datetime
 
 import uvicorn
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import Depends, FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 
 from backend import config
 from backend.services.container import container
 from backend.services.rate_limiter import RateLimitMiddleware
 from backend.routes import alerts, chat, stats, audit, auth
-from backend.services.auth import verify_jwt
+from backend.services.auth import get_current_user, verify_jwt
 from backend.services.alert_processor import generate_event, process_event
 
 # Structured JSON logging
@@ -50,6 +51,7 @@ async def create_indexes(db):
         await db["security_events"].create_index("event_type")
         await db["security_events"].create_index("src_ip")
         await db["security_events"].create_index("risk_score")
+        await db["security_events"].create_index("id", unique=True, sparse=True)
         await db["audit_logs"].create_index("timestamp")
         logger.info("[Database] MongoDB indexes created successfully.")
     except Exception as e:
@@ -77,13 +79,12 @@ async def run_data_generator():
                 threat_intel=container.threat_intel,
                 playbook_engine=container.playbook_engine,
             )
+            enriched.setdefault("id", str(uuid.uuid4()))
             await db["security_events"].insert_one(enriched)
 
             copy = dict(enriched)
             if "_id" in copy:
                 copy["_id"] = str(copy["_id"])
-            if "id" not in copy:
-                copy["id"] = f"{copy.get('timestamp')}_{copy.get('src_ip')}"
 
             await ws_mgr.broadcast({"type": "NEW_ALERT", "data": copy})
             return copy
@@ -132,6 +133,8 @@ async def run_data_generator():
 async def lifespan(app: FastAPI):
     global bg_generator_task
 
+    config.validate_runtime_config()
+
     # 1. Start DI container
     await container.start()
     db = container.db
@@ -175,8 +178,11 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.error(f"Failed to bootstrap correlation engine: {e}")
 
-    # 6. Start background generator
-    bg_generator_task = asyncio.create_task(run_data_generator())
+    # 6. Start demo synthetic generator only when explicitly enabled.
+    if config.ENABLE_SYNTHETIC_GENERATOR:
+        bg_generator_task = asyncio.create_task(run_data_generator())
+    else:
+        logger.info("Synthetic event generator disabled. Set ENABLE_SYNTHETIC_GENERATOR=true for demos.")
 
     yield
 
@@ -226,11 +232,13 @@ def read_root():
         "gemini_api": "configured" if bool(config.OPENCODE_API_KEY) else "fallback_mode",
         "opencode_api": "configured" if bool(config.OPENCODE_API_KEY) else "fallback_mode",
         "anomaly_detector": "trained" if ad and ad.is_trained else "untrained",
+        "demo_mode": config.DEMO_MODE,
+        "synthetic_generator": "enabled" if config.ENABLE_SYNTHETIC_GENERATOR else "disabled",
     }
 
 
 @app.post("/api/model/train")
-async def train_model():
+async def train_model(current_user: dict = Depends(get_current_user)):
     logger.info("Manual training request received for Isolation Forest...")
     try:
         db = container.db
@@ -250,7 +258,7 @@ async def train_model():
 
 
 @app.post("/api/model/train-feedback")
-async def train_feedback_model():
+async def train_feedback_model(current_user: dict = Depends(get_current_user)):
     logger.info("Manual feedback classifier training requested...")
     try:
         db = container.db

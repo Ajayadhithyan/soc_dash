@@ -16,9 +16,11 @@ import bcrypt
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
+from backend import config
+
 logger = logging.getLogger("soc_backend")
 
-SECRET_KEY = os.getenv("JWT_SECRET_KEY", "changeme-in-production-use-a-strong-random-key")
+SECRET_KEY = config.JWT_SECRET_KEY or "development-only-jwt-secret"
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_HOURS = 24
 
@@ -115,14 +117,13 @@ async def optional_current_user(credentials: Optional[HTTPAuthorizationCredentia
     return payload
 
 
-# In a production system, users should be stored in a database with hashed passwords.
-# For demonstration, we keep a small in-memory set with hashed passwords.
-USERS_DB = {
-    "admin": {"password": hash_password("admin123"), "role": "admin"},
-    "senior_analyst": {"password": hash_password("senior123"), "role": "senior_analyst"},
-    "analyst": {"password": hash_password("analyst123"), "role": "analyst"},
-    "viewer": {"password": hash_password("viewer123"), "role": "viewer"},
-}
+DEMO_USERS_DB = {}
+if config.DEMO_MODE:
+    demo_admin_password = os.getenv("DEMO_ADMIN_PASSWORD")
+    if demo_admin_password:
+        DEMO_USERS_DB["admin"] = {"password": hash_password(demo_admin_password), "role": "admin"}
+    else:
+        logger.warning("DEMO_MODE is enabled but DEMO_ADMIN_PASSWORD is not set. Demo login is disabled.")
 
 
 class AuthService:
@@ -130,13 +131,29 @@ class AuthService:
         self.db = db
 
     async def authenticate(self, username: str, password: str) -> Optional[dict]:
-        user = USERS_DB.get(username)
+        if config.DEMO_MODE:
+            user = DEMO_USERS_DB.get(username)
+            if user and verify_password(password, user["password"]):
+                return {"username": username, "role": user["role"]}
+
+        if self.db is None:
+            return None
+
+        user = await self.db["users"].find_one({"username": username, "active": {"$ne": False}})
         if user and verify_password(password, user["password"]):
-            return {"username": username, "role": user["role"]}
+            return {"username": username, "role": user.get("role", "analyst")}
         return None
 
     async def get_user(self, username: str) -> Optional[dict]:
-        user = USERS_DB.get(username)
+        if config.DEMO_MODE:
+            user = DEMO_USERS_DB.get(username)
+            if user:
+                return {"username": username, "role": user["role"]}
+
+        if self.db is None:
+            return None
+
+        user = await self.db["users"].find_one({"username": username}, {"_id": 0, "password": 0})
         if user:
-            return {"username": username, "role": user["role"]}
+            return {"username": user.get("username", username), "role": user.get("role", "analyst")}
         return None

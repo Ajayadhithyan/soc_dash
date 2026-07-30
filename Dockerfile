@@ -13,7 +13,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy backend code
 COPY backend/ /app/backend/
-COPY .env /app/.env.example
+COPY backend/env.example /app/env.example
 
 # Create saved_models directory
 RUN mkdir -p /app/backend/saved_models

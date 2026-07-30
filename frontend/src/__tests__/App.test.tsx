@@ -1,7 +1,8 @@
-import { describe, it, expect, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import App from '../App'
+import { checkHealth, getAlerts } from '../utils/api'
 
 vi.mock('../utils/api', () => ({
   getOverview: vi.fn().mockResolvedValue({ total_alerts: 0, active_threats: 0, avg_risk_score: 0, critical_count: 0, high_count: 0, medium_count: 0, low_count: 0, alerts_last_hour: 0 }),
@@ -16,7 +17,12 @@ vi.mock('../utils/api', () => ({
   trainModel: vi.fn().mockResolvedValue({ success: true }),
   verifyAlert: vi.fn().mockResolvedValue({ success: true }),
   checkHealth: vi.fn().mockResolvedValue({ status: 'online', service: '', database: '', gemini_api: '', anomaly_detector: '' }),
+  setAuthToken: vi.fn(),
 }))
+
+beforeEach(() => {
+  localStorage.setItem('soc_token', 'mocked-jwt-token-value');
+})
 
 describe('App', () => {
   it('renders the dashboard header', async () => {
@@ -28,6 +34,7 @@ describe('App', () => {
 
     expect(screen.getAllByText(/zenith/i).length).toBeGreaterThanOrEqual(1)
     expect(screen.getByText(/SOC Platform/i)).toBeTruthy()
+    await waitFor(() => expect(checkHealth).toHaveBeenCalled())
   })
 
   it('renders tab navigation', async () => {
@@ -41,5 +48,6 @@ describe('App', () => {
     expect(screen.getByText('Analytics & Trends')).toBeTruthy()
     expect(screen.getByText('AI Copilot Lab')).toBeTruthy()
     expect(screen.getByText('SOAR Audit Trail')).toBeTruthy()
+    await waitFor(() => expect(getAlerts).toHaveBeenCalled())
   })
 })
