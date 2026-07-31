@@ -19,6 +19,7 @@ from backend.ml.sigma_engine import SigmaEngine
 from backend.services.websocket_manager import ConnectionManager
 from backend.services.threat_intel import ThreatIntelService
 from backend.services.playbook_engine import PlaybookEngine
+from backend.services.experiment_manager import ExperimentManager
 from backend.services.auth import AuthService
 
 
@@ -57,6 +58,7 @@ class AppContainer:
         self._sigma_engine = SigmaEngine()
         self._threat_intel = ThreatIntelService()
         self._playbook_engine = PlaybookEngine()
+        self._experiment_manager = ExperimentManager()
         self._chat_assistant = ChatAssistant(self._db, config.OPENCODE_API_KEY)
         self._auth_service = AuthService(self._db)
 
@@ -116,6 +118,10 @@ class AppContainer:
     def auth_service(self) -> AuthService:
         return self._auth_service
 
+    @property
+    def experiment_manager(self) -> ExperimentManager:
+        return self._experiment_manager
+
 
 container = AppContainer()
 
@@ -142,3 +148,7 @@ def get_chat_assistant(container: AppContainer = Depends(get_container)):
 
 def get_auth_service(container: AppContainer = Depends(get_container)):
     return container.auth_service
+
+
+def get_experiment_manager(container: AppContainer = Depends(get_container)):
+    return container.experiment_manager

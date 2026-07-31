@@ -55,3 +55,25 @@ async def test_health_endpoint():
     assert response.status_code == 200
     data = response.json()
     assert data["status"] == "online"
+
+
+@pytest.mark.asyncio
+async def test_ingest_endpoint():
+    from backend.main import app
+    from backend.services.container import container
+    await container.start()
+    token = create_access_token("admin", "admin")
+    transport = ASGITransport(app=app)
+    headers = {"Authorization": f"Bearer {token}"}
+    payload = {
+        "logs": [
+            "Jul 31 14:22:05 server sshd[1234]: Failed password for invalid user admin from 192.168.1.100 port 54321 ssh2",
+            {"src_ip": "8.8.8.8", "event_type": "PORT_SCAN", "raw_log": "custom json event"}
+        ]
+    }
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        response = await ac.post("/api/alerts/ingest", json=payload, headers=headers)
+    assert response.status_code == 200
+    data = response.json()
+    assert data["success"] is True
+    assert data["count"] == 2
