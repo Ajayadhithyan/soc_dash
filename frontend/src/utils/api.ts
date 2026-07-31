@@ -50,7 +50,9 @@ api.interceptors.response.use(
   (error) => {
     if (error.response && error.response.status === 401) {
       localStorage.removeItem('soc_token');
-      window.location.href = '/';
+      if (window.location.pathname !== '/') {
+        window.location.href = '/';
+      }
     }
     return Promise.reject(error);
   }
@@ -179,5 +181,20 @@ export function exportAlertsToCsv(alerts: AlertEvent[]) {
   link.click();
   URL.revokeObjectURL(url);
 }
+
+export const getSyntheticConfig = async (): Promise<{ enabled: boolean }> => {
+  const response = await api.get('/api/alerts/config/synthetic');
+  return response.data;
+};
+
+export const toggleSyntheticConfig = async (enabled: boolean): Promise<{ success: boolean; enabled: boolean }> => {
+  const response = await api.post('/api/alerts/config/synthetic', null, { params: { enabled } });
+  return response.data;
+};
+
+export const ingestLogs = async (logs: (string | object)[]): Promise<{ success: boolean; count: number }> => {
+  const response = await api.post('/api/alerts/ingest', { logs });
+  return response.data;
+};
 
 export default api;
