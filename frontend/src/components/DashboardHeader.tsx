@@ -8,9 +8,11 @@ interface DashboardHeaderProps {
   onRefresh: () => void;
   onTrainModel: () => Promise<{ success: boolean; message?: string }>;
   onLogout?: () => void;
+  isSyntheticEnabled: boolean;
+  onToggleSynthetic: () => void;
 }
 
-function DashboardHeader({ wsStatus, systemHealth, onRefresh, onTrainModel, onLogout }: DashboardHeaderProps) {
+function DashboardHeader({ wsStatus, systemHealth, onRefresh, onTrainModel, onLogout, isSyntheticEnabled, onToggleSynthetic }: DashboardHeaderProps) {
   const [time, setTime] = useState(new Date());
   const [isTraining, setIsTraining] = useState(false);
   const [feedback, setFeedback] = useState<'success' | 'error' | null>(null);
@@ -94,6 +96,19 @@ function DashboardHeader({ wsStatus, systemHealth, onRefresh, onTrainModel, onLo
         </div>
 
         <button
+          onClick={onToggleSynthetic}
+          className={`flex items-center gap-1.5 px-3 py-1 rounded-full border text-xs transition-all cursor-pointer font-medium ${
+            isSyntheticEnabled 
+              ? 'bg-emerald-950/30 border-emerald-800/50 text-emerald-300 hover:bg-emerald-900/40' 
+              : 'bg-zinc-900/40 border-zinc-800/80 text-zinc-400 hover:bg-zinc-800/40'
+          }`}
+          title="Toggle synthetic log generator stream"
+        >
+          <span className={`w-2 h-2 rounded-full ${isSyntheticEnabled ? 'bg-emerald-500 animate-pulse' : 'bg-zinc-500'}`} />
+          <span>Sim Stream: {isSyntheticEnabled ? 'Active' : 'Off'}</span>
+        </button>
+
+        <button
           onClick={handleTrainClick}
           disabled={isTraining || systemHealth?.status !== 'online'}
           className={`flex items-center gap-1.5 px-3 py-1 rounded-full border text-xs transition-all cursor-pointer font-medium ${
@@ -164,6 +179,12 @@ function DashboardHeader({ wsStatus, systemHealth, onRefresh, onTrainModel, onLo
             </div>
           </div>
           <div className="flex gap-2">
+            <button onClick={onToggleSynthetic} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs cursor-pointer ${
+              isSyntheticEnabled ? 'bg-emerald-950/30 border-emerald-800/50 text-emerald-300' : 'bg-zinc-900 border-zinc-800 text-zinc-400'
+            }`}>
+              <span className={`w-2 h-2 rounded-full ${isSyntheticEnabled ? 'bg-emerald-500 animate-pulse' : 'bg-zinc-500'}`} />
+              Sim Stream: {isSyntheticEnabled ? 'Active' : 'Off'}
+            </button>
             <button onClick={handleTrainClick} disabled={isTraining} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-violet-950/30 border border-violet-800/50 text-violet-300 text-xs cursor-pointer">
               <Cpu className={`w-3.5 h-3.5 ${isTraining ? 'animate-spin' : ''}`} />
               {isTraining ? 'Training...' : 'Train Model'}
