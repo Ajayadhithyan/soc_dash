@@ -1,13 +1,10 @@
-"""
-Pydantic schemas for API request/response models.
-"""
-
 from pydantic import BaseModel, Field
-from typing import Optional, List, Dict, Any
+from typing import Optional, List
 from datetime import datetime
 
 
 class AlertEvent(BaseModel):
+    """Schema for a security alert event."""
     timestamp: str = ""
     src_ip: str = ""
     dest_ip: str = ""
@@ -22,19 +19,21 @@ class AlertEvent(BaseModel):
     cvss_base: float = 0.0
     asset_criticality: float = 0.0
     asset_type: str = "default"
-    mitre: Dict[str, Any] = Field(default_factory=dict)
-    auto_response: Optional[Dict[str, Any]] = None
+    mitre: dict = {}
+    auto_response: Optional[dict] = None
     id: str = ""
 
 
 class AlertListResponse(BaseModel):
-    alerts: List[Dict[str, Any]] = Field(default_factory=list)
+    """Paginated list of alerts."""
+    alerts: List[dict] = []
     total: int = 0
     page: int = 1
     per_page: int = 50
 
 
 class StatsOverview(BaseModel):
+    """KPI overview metrics."""
     total_alerts: int = 0
     critical_count: int = 0
     high_count: int = 0
@@ -46,16 +45,19 @@ class StatsOverview(BaseModel):
 
 
 class SeverityDistribution(BaseModel):
+    """Severity breakdown for charts."""
     severity: str
     count: int
 
 
 class TimelinePoint(BaseModel):
+    """Single point in timeline chart."""
     time: str
     count: int
 
 
 class TopSource(BaseModel):
+    """Top attacking source IP."""
     ip: str
     count: int
     last_seen: str = ""
@@ -63,37 +65,26 @@ class TopSource(BaseModel):
 
 
 class ChatRequest(BaseModel):
+    """Chat message from analyst."""
     message: str = Field(..., min_length=1, max_length=2000)
 
 
 class ChatResponse(BaseModel):
+    """Chat response from AI assistant."""
     response: str
     context_alerts_used: int = 0
 
 
 class AutoResponseRequest(BaseModel):
+    """Auto-response action request."""
     action: str = Field(..., pattern="^(block_ip|quarantine_host|create_ticket)$")
     alert_id: str = ""
 
 
 class AutoResponseResult(BaseModel):
+    """Result of an auto-response action."""
     success: bool
     action: str
     message: str
     timestamp: str = ""
     details: dict = {}
-
-
-class LoginRequest(BaseModel):
-    username: str = Field(..., min_length=3, max_length=50)
-    password: str = Field(..., min_length=6, max_length=100)
-
-
-class TokenResponse(BaseModel):
-    access_token: str
-    token_type: str = "bearer"
-
-
-class UserDetails(BaseModel):
-    username: str
-    role: str = "analyst"
