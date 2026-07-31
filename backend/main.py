@@ -8,6 +8,7 @@ import logging
 import json
 import sys
 import uuid
+import os
 from contextlib import asynccontextmanager
 from datetime import datetime
 
@@ -18,7 +19,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from backend import config
 from backend.services.container import container
 from backend.services.rate_limiter import RateLimitMiddleware
-from backend.routes import alerts, chat, stats, audit, auth
+from backend.routes import alerts, chat, stats, audit, auth, ingest
 from backend.services.auth import get_current_user, verify_jwt
 from backend.services.alert_processor import generate_event, process_event
 
@@ -89,17 +90,22 @@ async def run_data_generator():
             await ws_mgr.broadcast({"type": "NEW_ALERT", "data": copy})
             return copy
 
-        logger.info("Pre-populating 5 fresh security alerts...")
-        for i in range(5):
-            try:
-                result = await _process_and_broadcast(generate_event())
-                logger.info(f"Pre-populated startup alert {i+1}/5: {result.get('event_type')}")
-                await asyncio.sleep(0.5)
-            except Exception as e:
-                logger.error(f"Error pre-populating startup event: {e}")
+        if config.ENABLE_SYNTHETIC_GENERATOR:
+            logger.info("Pre-populating 5 fresh security alerts...")
+            for i in range(5):
+                try:
+                    result = await _process_and_broadcast(generate_event())
+                    logger.info(f"Pre-populated startup alert {i+1}/5: {result.get('event_type')}")
+                    await asyncio.sleep(0.5)
+                except Exception as e:
+                    logger.error(f"Error pre-populating startup event: {e}")
 
         new_events_count = 0
         while True:
+            await asyncio.sleep(config.EVENT_GENERATION_INTERVAL)
+            if not config.ENABLE_SYNTHETIC_GENERATOR:
+                continue
+
             try:
                 result = await _process_and_broadcast(generate_event())
                 logger.info(f"Processed and broadcast alert: {result.get('event_type')} (Risk: {result.get('risk_score')})")
@@ -121,8 +127,6 @@ async def run_data_generator():
             except Exception as e:
                 logger.error(f"Error in data generator iteration: {e}", exc_info=True)
 
-            await asyncio.sleep(config.EVENT_GENERATION_INTERVAL)
-
     except asyncio.CancelledError:
         logger.info("Background security event generator stopped.")
     except Exception as e:
@@ -138,6 +142,36 @@ async def lifespan(app: FastAPI):
     # 1. Start DI container
     await container.start()
     db = container.db
+
+    # 1.5. Initialize experiment management system
+    try:
+        # Check if experiment mode is enabled via environment variable
+        if os.getenv("ENABLE_EXPERIMENT_MODE", "false").lower() in ("true", "1", "yes"):
+            exp_manager = container.experiment_manager
+
+            # Try to load and start a default experiment
+            experiment_id = os.getenv("EXPERIMENT_ID", "default_research")
+            experiment = exp_manager.get_experiment(experiment_id)
+
+            if experiment:
+                # Get seed from environment if specified
+                seed_str = os.getenv("EXPERIMENT_SEED")
+                seed = int(seed_str) if seed_str and seed_str.isdigit() else None
+
+                if exp_manager.start_experiment(experiment_id, seed):
+                    logger.info(f"[Experiment] Started experiment: {experiment_id}")
+                    if seed is not None:
+                        logger.info(f"[Experiment] Using seed for reproducibility: {seed}")
+                else:
+                    logger.warning(f"[Experiment] Failed to start experiment: {experiment_id}")
+            else:
+                logger.warning(f"[Experiment] Experiment not found: {experiment_id}")
+                logger.info("[Experiment] Available experiments: " +
+                           ", ".join(exp_manager.list_experiments()))
+        else:
+            logger.info("[Experiment] Experiment mode disabled. Set ENABLE_EXPERIMENT_MODE=true to enable.")
+    except Exception as e:
+        logger.error(f"[Experiment] Failed to initialize experiment management: {e}")
 
     # 2. Create indexes
     await create_indexes(db)
@@ -178,11 +212,8 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.error(f"Failed to bootstrap correlation engine: {e}")
 
-    # 6. Start demo synthetic generator only when explicitly enabled.
-    if config.ENABLE_SYNTHETIC_GENERATOR:
-        bg_generator_task = asyncio.create_task(run_data_generator())
-    else:
-        logger.info("Synthetic event generator disabled. Set ENABLE_SYNTHETIC_GENERATOR=true for demos.")
+    # 6. Start background synthetic event generator task.
+    bg_generator_task = asyncio.create_task(run_data_generator())
 
     yield
 
@@ -219,6 +250,7 @@ app.include_router(stats.router)
 app.include_router(chat.router)
 app.include_router(audit.router)
 app.include_router(auth.router)
+app.include_router(ingest.router)
 
 
 @app.get("/")
@@ -300,7 +332,7 @@ async def websocket_endpoint(websocket: WebSocket):
         return
     # Optionally
     # Attach user info to websocket for possible use
-    websocket.user = payload
+    websocket.scope["user"] = payload
     await ws_mgr.connect(websocket)
     try:
         while True:
