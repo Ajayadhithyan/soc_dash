@@ -1,0 +1,143 @@
+# Default Experiment Configuration for Zenith SOC Research
+# This configuration enables research features while maintaining real-time dashboard functionality
+
+version: '1.0.0'
+description: 'Default research configuration for Zenith SOC system - enables deterministic operation and experiment tracking'
+
+# Experiment metadata
+name: 'baseline_research_mode'
+tags: ['baseline', 'research', 'reproducible']
+created_by: 'research_system'
+
+# Research settings
+research:
+  # Enable experiment mode (set to false for pure production operation)
+  enabled: true
+
+  # Sampling rate for data collection (0.0-1.0, where 1.0 = collect all data)
+  sampling_rate: 1.0
+
+  # Batch size for processing research data
+  batch_size: 100
+
+  # Enable detailed logging for research purposes
+
+
+  # Enable experiment tracking and metadata collection
+  experiment_tracking: true
+
+  # Enable deterministic mode for reproducibility
+  deterministic_mode: true
+
+  # Fixed seed for reproducible random operations (when deterministic_mode is true)
+  random_seed: 42
+
+  # Enable collection of intermediate features for analysis
+  collect_intermediate_features: true
+
+  # Enable performance profiling
+  performance_profiling: true
+
+# Feature flags for enabling/disabling specific research features
+features:
+  # Enable alternative anomaly detection algorithms
+  alt_anomaly_detection: false
+
+  # Enable advanced feature engineering
+  advanced_features: false
+
+  # Enable experimental risk scoring models
+  experimental_risk_scoring: false
+
+  # Enable detailed attack pattern analysis
+  attack_pattern_analysis: true
+
+  # Enable ML model explainability features
+  model_explainability: false
+
+  # Enable A/B testing framework
+  ab_testing: false
+
+# Data generation settings (for synthetic data in research mode)
+data_generation:
+  # Enable controlled attack patterns
+  controlled_attacks: true
+
+  # Attack frequency (attacks per minute)
+  attack_frequency: 10
+
+  # Enable specific attack types for study
+  attack_types:
+    ssh_brute_force: true
+    port_scan: true
+    failed_login: true
+    malware_detection: true
+    data_exfiltration: true
+
+  # Control attack intensity
+  attack_intensity: 0.7  # 0.0-1.0 scale
+
+  # Enable timing attacks for research
+  timing_attacks: false
+
+# Model configuration for research
+models:
+  # Anomaly detection model selection
+  anomaly_detector:
+    type: 'IsolationForest'  # Options: IsolationForest, LOF, OneClassSVM, AutoEncoder
+    parameters:
+      n_estimators: 100
+      contamination: 0.1
+      max_samples: 'auto'
+      random_state: 42  # Will be overridden by experiment seed if deterministic_mode is true
+
+  # Feature selection/transformation
+  feature_processing:
+    scaler_type: 'StandardScaler'  # Options: StandardScaler, MinMaxScaler, RobustScaler
+    feature_selection: false
+    pca_components: null
+
+# Monitoring and alerting for research
+monitoring:
+  # Enable detailed metrics collection
+  detailed_metrics: true
+
+  # Enable alert enrichment with research data
+  alert_enrichment: true
+
+  # Enable research-specific alerts
+  research_alerts: true
+
+  # Metrics collection interval (seconds)
+  metrics_interval: 30
+
+# Output and storage settings
+output:
+  # Enable exporting experiment data
+  export_data: true
+
+  # Export format (csv, json, parquet)
+  export_format: 'csv'
+
+  # Enable storing intermediate results
+  store_intermediate: true
+
+  # Data retention policy (days)
+  retention_days: 30
+
+  # Enable compression of stored data
+  compress_storage: false
+
+# Safety and performance guards
+safety:
+  # Maximum processing time per event (ms)
+  max_processing_time_ms: 100
+
+  # Maximum memory usage for research features (MB)
+  max_memory_mb: 500
+
+  # Enable circuit breaker for research features
+  circuit_breaker: true
+
+  # Gracefully degrade to basic operation if research features fail
+  graceful_degradation: true
