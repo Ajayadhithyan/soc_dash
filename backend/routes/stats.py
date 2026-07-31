@@ -8,9 +8,53 @@ from datetime import datetime, timedelta
 from collections import Counter
 
 from backend.services.auth import get_current_user
-from backend.services.container import get_db
+from backend.services.container import get_container, AppContainer, get_db
 
 router = APIRouter(prefix="/api/stats", tags=["stats"])
+
+
+@router.get("/experiment")
+async def get_experiment_status(
+    current_user: dict = Depends(get_current_user),
+    container: AppContainer = Depends(get_container)
+):
+    """Get current experiment status and configuration."""
+    try:
+        exp_manager = container.experiment_manager
+        current_exp = exp_manager.get_current_experiment()
+
+        if current_exp is None:
+            return {
+                "experiment_active": False,
+                "message": "No experiment currently running",
+                "available_experiments": exp_manager.list_experiments()
+            }
+
+        # Return a sanitized version of the experiment config (remove sensitive data)
+        safe_experiment = {
+            "experiment_active": True,
+            "experiment_id": current_exp.get("_metadata", {}).get("id", "unknown"),
+            "experiment_name": current_exp.get("name", "unnamed"),
+            "description": current_exp.get("description", ""),
+            "started_at": current_exp.get("_runtime_metadata", {}).get("started_at"),
+            "seed": current_exp.get("_runtime_metadata", {}).get("seed"),
+            "features_enabled": {
+                k: v for k, v in current_exp.get("features", {}).items()
+                if isinstance(v, bool)
+            },
+            "research_settings": current_exp.get("research", {}),
+            "available_experiments": exp_manager.list_experiments()
+        }
+
+        return safe_experiment
+    except Exception as e:
+        return {
+            "error": f"Failed to get experiment status: {str(e)}",
+            "experiment_active": False
+        }
+
+
+# Existing endpoints continue below...
 
 
 @router.get("/overview")
