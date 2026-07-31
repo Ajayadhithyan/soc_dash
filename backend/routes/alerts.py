@@ -8,10 +8,15 @@ import logging
 import uuid
 from datetime import datetime
 from fastapi import APIRouter, Depends, Query
+from pydantic import BaseModel
+from typing import List, Union, Dict, Any
 
+from backend import config
 from backend.models.schemas import AutoResponseResult
 from backend.services.auth import get_current_user
 from backend.services.container import get_db, get_container, AppContainer
+from backend.services.log_parser import parse_raw_log
+from backend.services.alert_processor import process_event
 
 logger = logging.getLogger("soc_backend")
 router = APIRouter(prefix="/api/alerts", tags=["alerts"])
@@ -322,3 +327,74 @@ def _get_playbook(event_type):
             "estimated_time": "15 minutes",
         },
     )
+
+
+@router.get("/config/synthetic")
+async def get_synthetic_config(current_user: dict = Depends(get_current_user)):
+    return {"enabled": config.ENABLE_SYNTHETIC_GENERATOR}
+
+
+@router.post("/config/synthetic")
+async def toggle_synthetic_config(enabled: bool, current_user: dict = Depends(get_current_user)):
+    config.ENABLE_SYNTHETIC_GENERATOR = enabled
+    logger.info(f"Synthetic generator status set to {enabled} by user {current_user.get('sub')}")
+    return {"success": True, "enabled": config.ENABLE_SYNTHETIC_GENERATOR}
+
+
+class IngestPayload(BaseModel):
+    logs: List[Union[str, Dict[str, Any]]]
+
+
+@router.post("/ingest")
+async def ingest_logs(
+    payload: IngestPayload,
+    db = Depends(get_db),
+    container: AppContainer = Depends(get_container),
+    current_user: dict = Depends(get_current_user),
+):
+    ingested_count = 0
+    for item in payload.logs:
+        if isinstance(item, str):
+            raw_event = parse_raw_log(item)
+        elif isinstance(item, dict):
+            raw_log = item.get("raw_log", "")
+            base_parsed = parse_raw_log(raw_log) if raw_log else {}
+            raw_event = {**base_parsed, **item}
+            raw_event.setdefault("timestamp", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+            raw_event.setdefault("src_ip", "127.0.0.1")
+            raw_event.setdefault("dest_ip", "10.0.0.5")
+            raw_event.setdefault("event_type", "UNKNOWN")
+            raw_event.setdefault("severity", "LOW")
+            raw_event.setdefault("user", "unknown")
+            raw_event.setdefault("raw_log", "JSON ingest payload")
+            raw_event.setdefault("asset_type", "server")
+            if "geo" not in raw_event:
+                from backend.services.log_parser import resolve_geoip
+                raw_event["geo"] = resolve_geoip(raw_event["src_ip"])
+        else:
+            continue
+
+        enriched = await process_event(
+            raw_event,
+            container.anomaly_detector,
+            container.mitre_mapper,
+            container.summarizer,
+            container.risk_scorer,
+            feedback_classifier=container.feedback_classifier,
+            correlation_engine=container.correlation_engine,
+            sigma_engine=container.sigma_engine,
+            threat_intel=container.threat_intel,
+            playbook_engine=container.playbook_engine,
+        )
+
+        import uuid
+        enriched.setdefault("id", str(uuid.uuid4()))
+        await db["security_events"].insert_one(enriched)
+
+        copy_evt = dict(enriched)
+        if "_id" in copy_evt:
+            copy_evt["_id"] = str(copy_evt["_id"])
+        await container.websocket_manager.broadcast({"type": "NEW_ALERT", "data": copy_evt})
+        ingested_count += 1
+
+    return {"success": True, "count": ingested_count}
