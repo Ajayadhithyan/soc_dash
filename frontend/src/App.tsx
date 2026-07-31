@@ -11,21 +11,23 @@ import { useToast } from './components/Toast';
 import {
   getOverview, getSeverityDistribution, getTimeline, getTopSources, getGeoData,
   getAlerts, getAlertDetail, respondToAlert, sendChatMessage, trainModel,
-  verifyAlert, checkHealth, setAuthToken,
+  verifyAlert, checkHealth, setAuthToken, getSyntheticConfig, toggleSyntheticConfig,
 } from './utils/api';
-import { Shield, TrendingUp, Cpu, Terminal, Target } from 'lucide-react';
+import { Shield, TrendingUp, Cpu, Terminal, Target, Database } from 'lucide-react';
 import type { AlertEvent, ChatMessage, SystemHealth } from './types';
 
 const AnalyticsCharts = lazy(() => import('./components/AnalyticsCharts'));
 const AICopilot = lazy(() => import('./components/AICopilot'));
 const SOARAuditLogs = lazy(() => import('./components/SOARAuditLogs'));
 const MitreHeatmap = lazy(() => import('./components/MitreHeatmap'));
+const IngestionHub = lazy(() => import('./components/IngestionHub'));
 
 const TABS = [
   { id: 'triage' as const, label: 'Incident Triage', icon: Shield },
   { id: 'analytics' as const, label: 'Analytics & Trends', icon: TrendingUp },
   { id: 'mitre' as const, label: 'MITRE ATT&CK', icon: Target },
   { id: 'copilot' as const, label: 'AI Copilot Lab', icon: Cpu },
+  { id: 'ingest' as const, label: 'Telemetry Ingest', icon: Database },
   { id: 'audit' as const, label: 'SOAR Audit Trail', icon: Terminal },
 ];
 
@@ -69,6 +71,7 @@ function App() {
 
   const [wsStatus, setWsStatus] = useState('disconnected');
   const [systemHealth, setSystemHealth] = useState<SystemHealth | null>(null);
+  const [isSyntheticEnabled, setIsSyntheticEnabled] = useState(false);
 
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
   const [isSendingMessage, setIsSendingMessage] = useState(false);
@@ -123,6 +126,30 @@ function App() {
     }
   }, []);
 
+  const fetchSyntheticConfigStatus = useCallback(async () => {
+    try {
+      const data = await getSyntheticConfig();
+      setIsSyntheticEnabled(data.enabled);
+    } catch {
+      console.error('Error fetching synthetic config status');
+    }
+  }, []);
+
+  const handleToggleSynthetic = useCallback(async () => {
+    const nextState = !isSyntheticEnabled;
+    try {
+      const data = await toggleSyntheticConfig(nextState);
+      setIsSyntheticEnabled(data.enabled);
+      addToast({
+        type: 'info',
+        title: data.enabled ? 'Generator Enabled' : 'Generator Disabled',
+        message: data.enabled ? 'Mock events will stream automatically.' : 'Dashboard is listening only for real ingest logs.'
+      });
+    } catch {
+      addToast({ type: 'error', title: 'Toggle Failed', message: 'Failed to update synthetic config.' });
+    }
+  }, [isSyntheticEnabled, addToast]);
+
   useEffect(() => {
     setActiveTab(tabFromPath);
   }, [location.pathname]);
@@ -134,12 +161,17 @@ function App() {
 
   useEffect(() => {
     fetchSystemHealth();
-    fetchDashboardStats();
-  }, [fetchDashboardStats, fetchSystemHealth]);
+    if (token) {
+      fetchDashboardStats();
+      fetchSyntheticConfigStatus();
+    }
+  }, [fetchDashboardStats, fetchSystemHealth, fetchSyntheticConfigStatus, token]);
 
   useEffect(() => {
-    fetchAlertsList();
-  }, [fetchAlertsList]);
+    if (token) {
+      fetchAlertsList();
+    }
+  }, [fetchAlertsList, token]);
 
   useEffect(() => {
     let socket: WebSocket | null = null;
@@ -300,6 +332,8 @@ function App() {
             localStorage.removeItem('soc_token');
             setToken(null);
           }}
+          isSyntheticEnabled={isSyntheticEnabled}
+          onToggleSynthetic={handleToggleSynthetic}
         />
 
         <div className="px-6 py-3 border-b border-zinc-800 bg-zinc-950/80 flex flex-wrap gap-2 text-xs z-10">
@@ -433,6 +467,14 @@ function App() {
               </div>
             </div>
           </main>
+        )}
+
+        {activeTab === 'ingest' && (
+          <ErrorBoundary>
+            <Suspense fallback={<div className="flex-grow flex items-center justify-center py-20"><div className="text-zinc-500 text-xs font-mono">LOADING INGESTION HUB...</div></div>}>
+              <IngestionHub />
+            </Suspense>
+          </ErrorBoundary>
         )}
 
         {activeTab === 'audit' && (
