@@ -9,6 +9,7 @@ from collections import defaultdict
 from typing import Callable
 
 from fastapi import Request, HTTPException, status
+from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 
 logger = logging.getLogger("soc_backend")
@@ -40,8 +41,8 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next: Callable):
         client_ip = request.client.host if request.client else "unknown"
         if _rate_limiter.is_limited(client_ip, self.max_requests, self.window_seconds):
-            raise HTTPException(
+            return JSONResponse(
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                detail=f"Rate limit exceeded. Max {self.max_requests} requests per {self.window_seconds}s.",
+                content={"detail": f"Rate limit exceeded. Max {self.max_requests} requests per {self.window_seconds}s."},
             )
         return await call_next(request)
