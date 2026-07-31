@@ -4,9 +4,11 @@ Loads settings from environment variables / .env file.
 """
 
 import os
+from pathlib import Path
 from dotenv import load_dotenv
 
-load_dotenv(override=True)
+env_path = Path(__file__).resolve().parent / ".env"
+load_dotenv(dotenv_path=env_path, override=True)
 
 APP_ENV = os.getenv("APP_ENV", "development").lower()
 DEMO_MODE = os.getenv("DEMO_MODE", "false").lower() in {"1", "true", "yes", "on"}
