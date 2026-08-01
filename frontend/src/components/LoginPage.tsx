@@ -39,7 +39,7 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-zinc-900 border border-zinc-800 text-emerald-500 mb-4">
             <Shield className="w-8 h-8" />
           </div>
-          <h1 className="text-xl font-bold text-white tracking-tight">Zenith AI SOC</h1>
+          <h1 className="text-xl font-bold text-white tracking-tight">SOC Platform AI</h1>
           <p className="text-xs text-zinc-500 mt-1">Security Operations Center Login</p>
         </div>
 

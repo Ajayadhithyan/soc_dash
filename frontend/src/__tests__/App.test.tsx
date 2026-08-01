@@ -32,7 +32,7 @@ describe('App', () => {
       </MemoryRouter>
     )
 
-    expect(screen.getAllByText(/zenith/i).length).toBeGreaterThanOrEqual(1)
+    expect(screen.getAllByText(/soc/i).length).toBeGreaterThanOrEqual(1)
     expect(screen.getByText(/SOC Platform/i)).toBeTruthy()
     await waitFor(() => expect(checkHealth).toHaveBeenCalled())
   })

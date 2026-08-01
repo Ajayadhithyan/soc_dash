@@ -1,8 +1,8 @@
-# Default Experiment Configuration for Zenith SOC Research
+# Default Experiment Configuration for SOC Platform Research
 # This configuration enables research features while maintaining real-time dashboard functionality
 
 version: '1.0.0'
-description: 'Default research configuration for Zenith SOC system - enables deterministic operation and experiment tracking'
+description: 'Default research configuration for SOC Platform system - enables deterministic operation and experiment tracking'
 
 # Experiment metadata
 name: 'baseline_research_mode'

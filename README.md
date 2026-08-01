@@ -1,8 +1,8 @@
-# 🛡️ Zenith SOC Dashboard — Command Center
+# 🛡️ SOC Platform Dashboard — Command Center
 
 > **Real-Time Cybersecurity Threat Telemetry, Machine Learning Anomaly Detection & AI Playbook Orchestrator**
 
-Zenith SOC is a production-inspired Security Operations Center (SOC) analyst dashboard designed to aggregate, analyze, prioritize, and respond to security events in real-time. By combining **scikit-learn unsupervised machine learning**, **Google Gemini AI reasoning**, and **real-time WebSocket streaming**, Zenith SOC automates the initial triage stages of a security incident, giving analysts high-context data, threat intelligence mapping, and automated playbooks at their fingertips.
+The SOC Platform is a production-inspired Security Operations Center (SOC) analyst dashboard designed to aggregate, analyze, prioritize, and respond to security events in real-time. By combining **scikit-learn unsupervised machine learning**, **Google Gemini AI reasoning**, and **real-time WebSocket streaming**, it automates the initial triage stages of a security incident, giving analysts high-context data, threat intelligence mapping, and automated playbooks at their fingertips.
 
 ---
 
@@ -40,7 +40,7 @@ Zenith SOC is a production-inspired Security Operations Center (SOC) analyst das
 
 ## 🏗️ Technical Architecture
 
-Zenith SOC uses a distributed, full-stack architecture optimized for high-throughput stream processing and low-latency rendering:
+The SOC Platform uses a distributed, full-stack architecture optimized for high-throughput stream processing and low-latency rendering:
 
 ```
                   ┌─────────────────────────────────────────────────────────────┐
@@ -130,7 +130,7 @@ A hybrid mapping logic categorizes every security alert:
 - **Unknown/Uncategorized Events**: Enters the Gemini inference pipeline, using zero-shot classification to map the incident to a relevant Technique ID, Name, Tactic, and list of Sub-techniques.
 
 ### 5. Algorithmic Risk Scoring
-Rather than relying on raw severity flags, Zenith SOC evaluates a weighted index formula:
+Rather than relying on raw severity flags, the SOC Platform evaluates a weighted index formula:
 
 $$\text{Risk Score} = (0.40 \times \text{CVSS Normalized}) + (0.35 \times \text{Anomaly Score} \times 10) + (0.25 \times \text{Asset Criticality})$$
 
@@ -231,7 +231,7 @@ DB_NAME=soc_ai_dashboard
 GEMINI_API_KEY=your_gemini_api_key_here
 EVENT_GENERATION_INTERVAL=90
 ```
-> **Note**: Zenith SOC will run perfectly in fallback mode if `GEMINI_API_KEY` is left blank, substituting local rule engines for RAG chat and structured templates for alert summaries.
+> **Note**: The SOC Platform will run perfectly in fallback mode if `GEMINI_API_KEY` is left blank, substituting local rule engines for RAG chat and structured templates for alert summaries.
 
 ### Step 3: Set up Python Backend
 Create a virtual environment, activate it, and install dependencies:
@@ -322,6 +322,76 @@ When an alert is inspected, the **Playbook** view is populated with step-by-step
 
 ---
 
+## 🔧 Operations, Deployment & Troubleshooting Guide
+
+This section describes standard operations, deployment methods, performance tuning, rate limiting, and backup procedures for the SOC Platform.
+
+### 1. Production Deployment
+
+#### Docker Compose
+The platform is fully containerized and can be launched in production using the root [docker-compose.yml](file:///c:/Users/V.AJAY%20ADHITHYAN/Desktop/soc/docker-compose.yml).
+1. Configure env parameters in the root `.env` file.
+2. Build and start the services:
+   ```bash
+   docker-compose up --build -d
+   ```
+3. The React frontend will be exposed on port `80` (mapped via Nginx proxy) and the FastAPI backend on port `8000`.
+
+#### Kubernetes Deployment
+For high availability, deploy the services inside a Kubernetes cluster:
+- **Backend Deployment**: Configure a deployment replica set for the backend. Set env vars referencing a Kubernetes secret for credentials (`MONGODB_URI`, `JWT_SECRET_KEY`, `OPENCODE_API_KEY`).
+- **Frontend Deployment**: Serve the Nginx build container on a replica set of 3 instances behind an Ingress Controller mapping `/api` to the backend service.
+- **State Store**: Use a managed MongoDB service (like MongoDB Atlas) rather than an in-cluster pod for production data safety.
+
+---
+
+### 2. Performance Tuning & Scaling
+
+- **Synthetic Event Generator**: In production, disable the synthetic data generator by setting `ENABLE_SYNTHETIC_GENERATOR=false` in `.env` to prevent mock event ingestion.
+- **Model Retraining Interval**: The background event loop retrains the Isolation Forest anomaly detector every 20 events. For high-volume environments, this is too aggressive. Tune this value in `backend/main.py` inside `run_data_generator` (e.g., increase the retraining frequency threshold to `1000` events or trigger it via a daily cron job).
+- **WebSocket Broadcasting**: The WebSocket server uses a simple broadcasting loop. For thousands of concurrent clients, integrate a Redis Pub/Sub backend in `backend/services/websocket_manager.py` to distribute connections across multiple server instances.
+- **Database Indexing**: The backend automatically sets up indexes on `timestamp`, `severity`, `event_type`, `src_ip`, and `risk_score` at boot. For high-throughput search, ensure indexes fit in RAM.
+
+---
+
+### 3. API Rate Limiting
+
+The backend uses a rate-limiting middleware in `backend/main.py`:
+```python
+app.add_middleware(RateLimitMiddleware, max_requests=120, window_seconds=60)
+```
+- **Default Limit**: `120 requests/minute`.
+- **Customization**: To adjust limits for specific networks or endpoints, modify the `max_requests` and `window_seconds` parameters in `backend/main.py`.
+
+---
+
+### 4. Backup & Recovery
+
+#### Automated Backups
+Run a daily cron job to back up the security event collections:
+```bash
+mongodump --uri="mongodb://localhost:27017/" --db=soc_ai_dashboard --out=/var/backups/mongodb/$(date +%F)
+```
+
+#### Disaster Recovery
+To restore the database from a backup folder:
+```bash
+mongorestore --uri="mongodb://localhost:27017/" --db=soc_ai_dashboard /var/backups/mongodb/2026-08-01/soc_ai_dashboard
+```
+
+---
+
+### 5. Troubleshooting Guide
+
+| Issue | Root Cause | Solution |
+| :--- | :--- | :--- |
+| **Backend fails to connect to DB** | MongoDB service is not running or URI is incorrect. | Verify local MongoDB status (run `netstat -ano \| findstr 27017`). Ensure `MONGODB_URI` in `.env` matches your database address. |
+| **ImportError: cannot import name 'LoginRequest'** | Schemas are out-of-sync or outdated cache. | Update `backend/models/schemas.py` to define the missing Pydantic schemas. Run `pytest` to verify imports. |
+| **LLM Summaries return fallbacks** | Missing or invalid `OPENCODE_API_KEY`. | Set a valid API key in `.env` or check API quota. The engine falls back to structured template summaries automatically. |
+
+---
+
 ## 📄 License & Context
 
 This project is developed for educational and operational demonstration purposes. All simulated log streams, geo-origins, and attacks are synthetic and designed to illustrate the efficiency of combining unsupervised machine learning anomaly modeling with large language models inside SOC pipelines.
+

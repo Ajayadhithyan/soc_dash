@@ -271,6 +271,9 @@ def read_root():
 
 @app.post("/api/model/train")
 async def train_model(current_user: dict = Depends(get_current_user)):
+    user_role = current_user.get("role", "analyst")
+    if user_role == "viewer":
+        return {"success": False, "message": "Insufficient permissions: Viewers cannot train models."}
     logger.info("Manual training request received for Isolation Forest...")
     try:
         db = container.db
@@ -291,6 +294,9 @@ async def train_model(current_user: dict = Depends(get_current_user)):
 
 @app.post("/api/model/train-feedback")
 async def train_feedback_model(current_user: dict = Depends(get_current_user)):
+    user_role = current_user.get("role", "analyst")
+    if user_role == "viewer":
+        return {"success": False, "message": "Insufficient permissions: Viewers cannot train models."}
     logger.info("Manual feedback classifier training requested...")
     try:
         db = container.db

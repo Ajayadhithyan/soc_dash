@@ -264,7 +264,7 @@ function App() {
       const botMsg: ChatMessage = { sender: 'bot', text: res.response, context_alerts_used: res.context_alerts_used };
       setChatHistory((prev) => [...prev, botMsg]);
     } catch {
-      setChatHistory((prev) => [...prev, { sender: 'bot', text: 'I encountered an error communicating with the Zenith AI orchestrator core.' }]);
+      setChatHistory((prev) => [...prev, { sender: 'bot', text: 'I encountered an error communicating with the SOC Platform AI orchestrator core.' }]);
     } finally {
       setIsSendingMessage(false);
     }
@@ -386,7 +386,7 @@ function App() {
                     <ThreatHotspots geoData={geoData} />
                     <div className="bg-zinc-900/40 rounded-xl border border-zinc-800 p-6 flex flex-col items-center justify-center text-center gap-3 py-8">
                       <Shield className="w-6 h-6 text-emerald-500/80" />
-                      <h3 className="text-sm font-semibold text-zinc-200 tracking-wide">Zenith Telemetry Active</h3>
+                      <h3 className="text-sm font-semibold text-zinc-200 tracking-wide">SOC Telemetry Active</h3>
                       <p className="text-xs text-zinc-400 max-w-[280px] leading-relaxed">
                         Live security incident streaming is running. Click any alert row on the left to analyze payloads, map MITRE ATT&CK vectors, and execute mitigation playbooks.
                       </p>
@@ -440,10 +440,10 @@ function App() {
               <div className="glassmorphism rounded-xl border border-cyber-card-border p-5 flex flex-col h-full">
                 <div className="flex items-center gap-2 border-b border-cyber-card-border/30 pb-3 mb-4">
                   <Cpu className="w-5 h-5 text-purple-500 animate-pulse" />
-                  <h2 className="text-sm font-bold font-cyber tracking-wider text-zinc-200 uppercase">Zenith AI Copilot Lab</h2>
+                  <h2 className="text-sm font-bold font-cyber tracking-wider text-zinc-200 uppercase">SOC AI Copilot Lab</h2>
                 </div>
                 <p className="text-[11px] text-zinc-400 font-mono mb-4 leading-relaxed">
-                  The Zenith AI Copilot leverages large language model intelligence to inspect your security logs catalog, explain attack methodologies, and design remediation actions.
+                  The SOC AI Copilot leverages large language model intelligence to inspect your security logs catalog, explain attack methodologies, and design remediation actions.
                 </p>
                 <div className="flex-1 flex flex-col gap-3 font-mono text-[10px] overflow-y-auto">
                   <div className="text-zinc-500 font-bold uppercase tracking-wider">Suggested Threat Queries</div>

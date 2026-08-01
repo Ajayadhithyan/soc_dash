@@ -71,7 +71,7 @@ function DashboardHeader({ wsStatus, systemHealth, onRefresh, onTrainModel, onLo
         </div>
         <div className="hidden sm:block">
           <h1 className="text-base font-semibold tracking-tight text-white flex items-center gap-1.5">
-            Zenith AI <span className="text-zinc-500 font-normal">|</span> <span className="text-zinc-400 font-normal">SOC Platform</span>
+            SOC Platform
           </h1>
           <p className="text-[11px] text-zinc-500 font-medium">
             Real-time Threat Intelligence & Automated Response

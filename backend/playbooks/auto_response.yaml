@@ -1,4 +1,4 @@
-# Zenith SOC — Automated Response Playbooks
+# SOC Platform — Automated Response Playbooks
 # These rules are evaluated against every incoming enriched alert.
 # If conditions match, the listed actions are auto-triggered (simulated).
 

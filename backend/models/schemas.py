@@ -88,3 +88,16 @@ class AutoResponseResult(BaseModel):
     message: str
     timestamp: str = ""
     details: dict = {}
+
+
+class LoginRequest(BaseModel):
+    """Schema for analyst authentication request."""
+    username: str
+    password: str
+
+
+class TokenResponse(BaseModel):
+    """Schema for authentication token response."""
+    access_token: str
+    token_type: str = "bearer"
+

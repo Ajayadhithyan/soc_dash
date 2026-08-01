@@ -45,13 +45,13 @@ function AICopilot({ onSendMessage, chatHistory, isSendingMessage }: AICopilotPr
   const handleExportTranscript = () => {
     if (chatHistory.length === 0) return;
 
-    let mdContent = `# Zenith AI SOC Threat Assessment Report\n`;
+    let mdContent = `# SOC AI Threat Assessment Report\n`;
     mdContent += `Generated: ${new Date().toLocaleString()}\n`;
     mdContent += `=========================================\n\n`;
 
     chatHistory.forEach((msg) => {
       const isUser = msg.sender === 'user';
-      mdContent += `### [${isUser ? 'ANALYST QUESTION' : 'ZENITH COPILOT RESPONSE'}]\n`;
+      mdContent += `### [${isUser ? 'ANALYST QUESTION' : 'SOC COPILOT RESPONSE'}]\n`;
       if (!isUser && msg.context_alerts_used > 0) {
         mdContent += `*RAG Security Context Alerts Referenced: ${msg.context_alerts_used}*\n\n`;
       }
@@ -62,7 +62,7 @@ function AICopilot({ onSendMessage, chatHistory, isSendingMessage }: AICopilotPr
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.setAttribute('download', `zenith_soc_report_${new Date().toISOString().slice(0, 10)}.md`);
+    link.setAttribute('download', `soc_report_${new Date().toISOString().slice(0, 10)}.md`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -135,7 +135,7 @@ function AICopilot({ onSendMessage, chatHistory, isSendingMessage }: AICopilotPr
       <div className="flex items-center justify-between border-b border-zinc-800/80 pb-3 mb-3">
         <div className="flex items-center gap-2">
           <Cpu className="w-4 h-4 text-emerald-500" />
-          <h3 className="text-xs font-semibold tracking-wider text-zinc-200 uppercase">Zenith AI Copilot</h3>
+          <h3 className="text-xs font-semibold tracking-wider text-zinc-200 uppercase">SOC AI Copilot</h3>
         </div>
         <div className="flex items-center gap-3">
           {chatHistory.length > 0 && (
@@ -143,7 +143,7 @@ function AICopilot({ onSendMessage, chatHistory, isSendingMessage }: AICopilotPr
               <FileText className="w-3 h-3 text-purple-400" />Export Report
             </button>
           )}
-          <div className="font-mono text-[9px] text-zinc-500">Model: Zenith AI Engine v2</div>
+          <div className="font-mono text-[9px] text-zinc-500">Model: SOC AI Engine v2</div>
         </div>
       </div>
 
@@ -154,7 +154,7 @@ function AICopilot({ onSendMessage, chatHistory, isSendingMessage }: AICopilotPr
             return (
               <div key={index} className={`flex flex-col gap-1 ${isUser ? 'items-end' : 'items-start'}`}>
                 <div className="flex items-center gap-1 text-[9px] text-zinc-500 uppercase">
-                  <span>{isUser ? 'Analyst' : 'Zenith Copilot'}</span>
+                  <span>{isUser ? 'Analyst' : 'SOC Copilot'}</span>
                   {!isUser && msg.context_alerts_used > 0 && (
                     <span className="bg-purple-500/10 text-purple-400 border border-purple-500/20 px-1.5 py-0.5 rounded text-[8px]">RAG Context: {msg.context_alerts_used}</span>
                   )}
@@ -178,7 +178,7 @@ function AICopilot({ onSendMessage, chatHistory, isSendingMessage }: AICopilotPr
         {/* Typing Indicator */}
         {isSendingMessage && (
           <div className="flex flex-col gap-1 items-start">
-            <div className="text-[9px] text-zinc-500 uppercase">Zenith Copilot thinking</div>
+            <div className="text-[9px] text-zinc-500 uppercase">SOC Copilot thinking</div>
             <div className="bg-zinc-900/60 border border-zinc-800 p-2.5 rounded-lg flex items-center gap-1.5">
               <span className="typing-dot w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
               <span className="typing-dot w-1.5 h-1.5 rounded-full bg-emerald-500" style={{ animationDelay: '0.2s' }}></span>

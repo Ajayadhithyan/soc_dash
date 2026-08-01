@@ -1,7 +1,7 @@
 # Experiment Management System - Usage Guide
 
 ## Overview
-The Experiment Management System allows researchers to run controlled experiments on the Zenith SOC platform while maintaining real-time dashboard functionality. It provides deterministic operation, configuration management, and experiment tracking.
+The Experiment Management System allows researchers to run controlled experiments on the SOC Platform while maintaining real-time dashboard functionality. It provides deterministic operation, configuration management, and experiment tracking.
 
 ## Key Features
 1. **Deterministic Mode** - Ensures reproducible results through controlled random seeding
@@ -130,7 +130,7 @@ GET /api/stats/experiment
   "experiment_active": true,
   "experiment_id": "exp_20240115_143022_abc123",
   "experiment_name": "baseline_research_mode",
-  "description": "Default research configuration for Zenith SOC system - enables deterministic operation and experiment tracking",
+  "description": "Default research configuration for SOC Platform system - enables deterministic operation and experiment tracking",
   "started_at": "2024-01-15T14:30:22.123456",
   "seed": 42,
   "features_enabled": {

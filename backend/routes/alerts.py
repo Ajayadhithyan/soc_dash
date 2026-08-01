@@ -115,9 +115,12 @@ async def auto_respond(
     container: AppContainer = Depends(get_container),
     current_user: dict = Depends(get_current_user),
 ):
+    user_role = current_user.get("role", "analyst")
+    if user_role == "viewer":
+        return {"success": False, "message": "Insufficient permissions: Viewers cannot trigger response actions."}
+
     # Role-based access control for destructive actions
     if action in ["block_ip", "quarantine_host"]:
-        user_role = current_user.get("role", "analyst")
         if user_role not in ["admin", "senior_analyst"]:
             return {"success": False, "message": f"Insufficient permissions to perform action: {action}"}
 
@@ -219,6 +222,10 @@ async def verify_alert(
     db=Depends(get_db),
     current_user: dict = Depends(get_current_user),
 ):
+    user_role = current_user.get("role", "analyst")
+    if user_role == "viewer":
+        return {"success": False, "message": "Insufficient permissions: Viewers cannot verify alerts."}
+
     if status.upper() not in ["TRUE_POSITIVE", "FALSE_POSITIVE"]:
         return {"success": False, "message": f"Invalid verification status: {status}"}
 
@@ -336,6 +343,10 @@ async def get_synthetic_config(current_user: dict = Depends(get_current_user)):
 
 @router.post("/config/synthetic")
 async def toggle_synthetic_config(enabled: bool, current_user: dict = Depends(get_current_user)):
+    user_role = current_user.get("role", "analyst")
+    if user_role not in ["admin", "senior_analyst"]:
+        return {"success": False, "message": "Insufficient permissions to toggle synthetic event generator."}
+
     config.ENABLE_SYNTHETIC_GENERATOR = enabled
     logger.info(f"Synthetic generator status set to {enabled} by user {current_user.get('sub')}")
     return {"success": True, "enabled": config.ENABLE_SYNTHETIC_GENERATOR}

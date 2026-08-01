@@ -212,7 +212,7 @@ def tail_file(filename):
                 continue
             yield line.strip()
 
-print(f"Watching {LOG_FILE} and forwarding to Zenith SOC...")
+print(f"Watching {LOG_FILE} and forwarding to SOC Platform...")
 for log_line in tail_file(LOG_FILE):
     try:
         response = requests.post(API_URL, json={"logs": [log_line]}, headers=headers)
@@ -388,7 +388,7 @@ for log_line in tail_file(LOG_FILE):
           </div>
 
           <p className="text-[11px] text-zinc-400 leading-relaxed">
-            Feed this Zenith SOC dashboard with live logs from your servers, firewalls, routers, or container clusters by posting payloads to the REST endpoint.
+            Feed this SOC Platform dashboard with live logs from your servers, firewalls, routers, or container clusters by posting payloads to the REST endpoint.
           </p>
 
           <div className="flex flex-col gap-1 text-xs">

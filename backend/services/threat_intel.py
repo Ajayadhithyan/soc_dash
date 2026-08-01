@@ -1,11 +1,14 @@
 """
 Threat Intelligence Service.
-Checks source IPs against a local blocklist of known malicious ranges
-and a dynamic cache of analyst-blocked IPs.
+Checks source IPs against a local blocklist of known malicious ranges,
+a dynamic cache of analyst-blocked IPs, and AlienVault OTX live threat feeds.
 """
 
 import logging
+import urllib.request
+import json
 from ipaddress import ip_address, ip_network
+from backend import config
 
 logger = logging.getLogger("soc_backend")
 
@@ -67,8 +70,44 @@ class ThreatIntelService:
 
         # Dynamic cache of analyst-blocked IPs (populated from SOAR actions)
         self.analyst_blocked_ips = set()
+        self.otx_api_key = getattr(config, "OTX_API_KEY", "")
 
         logger.info(f"[ThreatIntel] Loaded {len(self.blocklist)} malicious CIDR ranges.")
+
+    def query_otx(self, ip_str: str):
+        """Query AlienVault OTX live threat feed API if indicator is not a private IP."""
+        if not self.otx_api_key:
+            return None
+
+        from backend.services.log_parser import is_private_ip
+        if is_private_ip(ip_str):
+            return None
+
+        try:
+            url = f"https://otx.alienvault.com/api/v1/indicators/IPv4/{ip_str}/general"
+            req = urllib.request.Request(url)
+            req.add_header("X-OTX-API-KEY", self.otx_api_key)
+            with urllib.request.urlopen(req, timeout=1.5) as response:
+                data = json.loads(response.read().decode())
+                pulse_info = data.get("pulse_info", {})
+                pulse_count = pulse_info.get("count", 0)
+                if pulse_count > 0:
+                    pulses = pulse_info.get("pulses", [])
+                    pulse_names = [p.get("name") for p in pulses if p.get("name")][:3]
+                    logger.info(f"[ThreatIntel] OTX Match: {ip_str} found in {pulse_count} pulse(s).")
+                    return {
+                        "is_known_malicious": True,
+                        "blocklist_source": f"AlienVault OTX (Pulses: {pulse_count})",
+                        "threat_category": "otx_reported",
+                        "risk_multiplier": 0.9,
+                        "details": {
+                            "pulse_count": pulse_count,
+                            "pulses": pulse_names
+                        }
+                    }
+        except Exception as e:
+            logger.warning(f"[ThreatIntel] OTX lookup failed for {ip_str}: {e}")
+        return None
 
     def add_blocked_ip(self, ip_str):
         """Add an IP to the analyst-blocked cache (from BLOCK_IP SOAR actions)."""
@@ -77,7 +116,7 @@ class ThreatIntelService:
 
     def check_ip(self, ip_str):
         """
-        Check if an IP is in known malicious ranges or analyst-blocked list.
+        Check if an IP is in known malicious ranges, analyst-blocked list, or AlienVault OTX.
 
         Args:
             ip_str: IP address string (e.g., "185.220.100.42").
@@ -105,7 +144,13 @@ class ThreatIntelService:
             result["risk_multiplier"] = 0.8
             return result
 
-        # Check against threat feed blocklists
+        # Try live OTX lookup first if API key is configured
+        otx_result = self.query_otx(ip_str)
+        if otx_result:
+            result.update(otx_result)
+            return result
+
+        # Fallback check against offline threat feed blocklists
         try:
             ip_obj = ip_address(ip_str)
             for entry in self.blocklist:

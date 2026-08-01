@@ -1,5 +1,5 @@
 """
-Zenith SOC Copilot - Comprehensive Self-Contained AI Assistant (v2).
+SOC Copilot - Comprehensive Self-Contained AI Assistant (v2).
 
 Handles EVERYTHING:
   1. Live DB Queries      - severity counts, top IPs, event types, users targeted,
@@ -125,7 +125,7 @@ class CodebaseIndex:
 # ─────────────────────────────────────────────────────────────────────────────
 KB = {
     "architecture": """
-**Zenith SOC Platform Architecture**
+**SOC Platform Architecture**
 - Backend  : FastAPI (Python 3.12) + Motor (async MongoDB) + uvicorn ASGI
 - Frontend : React 18 + TypeScript + Vite + Recharts + Leaflet maps + D3
 - Database : MongoDB (local port 27017), DB: `soc_ai_dashboard`
@@ -381,9 +381,9 @@ INTENT_PATTERNS = {
         r"\bfailed.?login\b", r"\bransomware\b", r"\btrojan\b"
     ],
     "project_info": [
-        r"\bwhat is zenith\b", r"\babout this\b", r"\bproject\b",
+        r"\bwhat is the soc platform\b", r"\babout this\b", r"\bproject\b",
         r"\bplatform\b", r"\bpurpose\b", r"\bwhat does this\b",
-        r"\bzenith\b", r"\bsoc platform\b"
+        r"\bsoc platform\b"
     ],
     "audit_query": [
         r"\baudit\b", r"\bsoar action\b", r"\bresponded\b", r"\bblocked\b",
@@ -695,7 +695,7 @@ class ResponseGenerator:
             c = overview.get("critical", 0)
             last_hour = overview.get("last_hour", 0)
             return (
-                "Hello! I'm **Zenith Copilot**, your AI-powered SOC analyst assistant.\n\n"
+                "Hello! I'm **SOC Copilot**, your AI-powered SOC analyst assistant.\n\n"
                 f"**Current threat status at {now}:**\n"
                 f"- Total alerts in database: **{total}**\n"
                 f"- Critical severity alerts: **{c}**\n"
@@ -719,8 +719,8 @@ class ResponseGenerator:
         # ── PROJECT INFO ───────────────────────────────────────────────────────
         if "project_info" in intents:
             parts.append(
-                "## About Zenith SOC Platform\n"
-                "Zenith is a full-stack AI-powered **Security Operations Center (SOC) dashboard** "
+                "## About SOC Platform\n"
+                "The SOC Platform is a full-stack AI-powered **Security Operations Center (SOC) dashboard** "
                 "for real-time threat monitoring, ML-based anomaly detection, MITRE ATT&CK mapping, "
                 "automated incident response (SOAR), and analyst-in-the-loop feedback learning.\n"
                 + KB["architecture"]
@@ -1261,7 +1261,7 @@ class ChatAssistant:
                 code_results = self.codebase_index.search(question, top_k=2)
                 code_ctx = "\n\n".join(f"=== {p} ===\n{c[:1200]}" for p, c in code_results) if code_results else ""
                 system = (
-                    "You are Zenith Copilot, an expert AI SOC assistant embedded in the Zenith SOC platform. "
+                    "You are SOC Copilot, an expert AI SOC assistant embedded in the SOC Platform. "
                     "You have full access to the codebase and live MongoDB security data. "
                     "Answer analytically, reference actual file names and function names, use markdown formatting."
                 )
