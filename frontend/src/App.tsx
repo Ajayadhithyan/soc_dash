@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo, Suspense, lazy } from 'react';
+import React, { useState, useEffect, useCallback, Suspense, lazy } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import DashboardHeader from './components/DashboardHeader';
 import OverviewCards from './components/OverviewCards';
@@ -7,14 +7,14 @@ import AlertsTable from './components/AlertsTable';
 import AlertDetailSidebar from './components/AlertDetailSidebar';
 import ErrorBoundary from './components/ErrorBoundary';
 import LoginPage from './components/LoginPage';
-import { useToast } from './components/Toast';
+import { useToast } from './context/toast-context';
 import {
   getOverview, getSeverityDistribution, getTimeline, getTopSources, getGeoData,
   getAlerts, getAlertDetail, respondToAlert, sendChatMessage, trainModel,
   verifyAlert, checkHealth, setAuthToken, getSyntheticConfig, toggleSyntheticConfig,
 } from './utils/api';
 import { Shield, TrendingUp, Cpu, Terminal, Target, Database } from 'lucide-react';
-import type { AlertEvent, ChatMessage, SystemHealth } from './types';
+import type { AlertEvent, ChatMessage, SystemHealth, StatsOverview } from './types';
 
 const AnalyticsCharts = lazy(() => import('./components/AnalyticsCharts'));
 const AICopilot = lazy(() => import('./components/AICopilot'));
@@ -62,7 +62,7 @@ function App() {
   const [isResponding, setIsResponding] = useState<string | null>(null);
   const [responseLogs, setResponseLogs] = useState<Record<string, unknown>>({});
 
-  const [stats, setStats] = useState<Record<string, unknown> | null>(null);
+  const [stats, setStats] = useState<StatsOverview | null>(null);
   const [timeline, setTimeline] = useState<{ time: string; count: number }[]>([]);
   const [severityDist, setSeverityDist] = useState<{ severity: string; count: number }[]>([]);
   const [topSources, setTopSources] = useState<{ ip: string; count: number; last_seen: string; primary_attack: string }[]>([]);
@@ -152,7 +152,7 @@ function App() {
 
   useEffect(() => {
     setActiveTab(tabFromPath);
-  }, [location.pathname]);
+  }, [location.pathname, tabFromPath]);
 
   const handleTabChange = useCallback((tabId: string) => {
     setActiveTab(tabId);
@@ -400,7 +400,7 @@ function App() {
 
         {activeTab === 'analytics' && (
           <main className="flex-grow flex flex-col py-2 min-h-0">
-            <OverviewCards stats={stats as any} />
+            <OverviewCards stats={stats} />
             <div className="px-6 pb-6 flex-grow">
               <Suspense fallback={<div className="flex-grow flex items-center justify-center py-20"><div className="text-zinc-500 text-xs font-mono">LOADING...</div></div>}>
                 <AnalyticsCharts

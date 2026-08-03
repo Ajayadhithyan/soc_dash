@@ -1,1 +1,1 @@
-from backend.routes import alerts, stats, chat, audit, auth
+from . import alerts, stats, chat, audit, auth

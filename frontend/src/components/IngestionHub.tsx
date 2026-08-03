@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { 
-  Upload, Play, Pause, Terminal, CheckCircle, 
-  FileText, Code, RefreshCw, Settings, AlertTriangle, ShieldAlert
+import {
+  Upload, Play, Pause, Terminal, CheckCircle,
+  FileText, Code, Settings
 } from 'lucide-react';
 import { getSyntheticConfig, toggleSyntheticConfig, ingestLogs } from '../utils/api';
-import { useToast } from './Toast';
+import { useToast } from '../context/toast-context';
 
 export default function IngestionHub() {
   const { addToast } = useToast();
@@ -151,7 +151,7 @@ export default function IngestionHub() {
         clearInterval(streamIntervalRef.current);
       }
     };
-  }, [isStreaming, logLines, streamSpeed]);
+  }, [isStreaming, logLines, streamSpeed, addToast]);
 
   // Batch Ingestion
   const handleBatchIngest = async () => {
