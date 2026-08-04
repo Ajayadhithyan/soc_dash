@@ -18,9 +18,17 @@ def setup_mock_db():
     collections["security_events"].find_one = AsyncMock(return_value={"_id": "test_id", "id": "test_alert_id", "src_ip": "10.0.0.1"})
     collections["security_events"].update_one = AsyncMock(return_value=AsyncMock(matched_count=1))
     mock_db.__getitem__.side_effect = lambda key: collections.get(key, MagicMock())
+    
+    old_db = container._db
+    old_threat_intel = container._threat_intel
+    
     container._db = mock_db
+    container._threat_intel = MagicMock()
+    
     yield
-    container._db = None
+    
+    container._db = old_db
+    container._threat_intel = old_threat_intel
 
 
 @pytest.fixture

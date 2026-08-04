@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, memo } from 'react';
+import { useState, useRef, useEffect, memo, FormEvent } from 'react';
 import { Send, Cpu, Terminal, MessageSquare, FileText } from 'lucide-react';
 
 import type { ChatMessage } from '../types';
@@ -30,7 +30,7 @@ function AICopilot({ onSendMessage, chatHistory, isSendingMessage }: AICopilotPr
   ];
 
 
-  const handleSend = (e: React.FormEvent) => {
+  const handleSend = (e: FormEvent) => {
     e.preventDefault();
     if (!input.trim() || isSendingMessage) return;
     onSendMessage(input.trim());

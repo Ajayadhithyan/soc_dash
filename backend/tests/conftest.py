@@ -10,8 +10,11 @@ from unittest.mock import AsyncMock, MagicMock, patch
 def mock_db():
     """Create a mock MongoDB database."""
     mock = MagicMock()
-    mock["security_events"] = AsyncMock()
-    mock["audit_logs"] = AsyncMock()
+    collections = {
+        "security_events": AsyncMock(),
+        "audit_logs": AsyncMock(),
+    }
+    mock.__getitem__.side_effect = lambda key: collections.get(key, MagicMock())
     return mock
 
 
