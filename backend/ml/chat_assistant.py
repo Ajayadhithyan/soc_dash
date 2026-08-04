@@ -65,9 +65,12 @@ class CodebaseIndex:
         root_path = Path(self.root)
         count = 0
         for fpath in root_path.rglob("*"):
-            if fpath.is_dir():
-                continue
             if any(exc in fpath.parts for exc in self.EXCLUDE_DIRS):
+                continue
+            try:
+                if fpath.is_dir():
+                    continue
+            except Exception:
                 continue
             if fpath.suffix not in self.INCLUDE_EXTS:
                 continue

@@ -11,6 +11,10 @@ import uuid
 import os
 from contextlib import asynccontextmanager
 from datetime import datetime
+from pathlib import Path
+
+# Add project root to sys.path to allow running from any directory
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import uvicorn
 from fastapi import Depends, FastAPI, WebSocket, WebSocketDisconnect
