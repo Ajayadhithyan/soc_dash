@@ -18,6 +18,8 @@ vi.mock('../utils/api', () => ({
   verifyAlert: vi.fn().mockResolvedValue({ success: true }),
   checkHealth: vi.fn().mockResolvedValue({ status: 'online', service: '', database: '', gemini_api: '', anomaly_detector: '' }),
   setAuthToken: vi.fn(),
+  getSyntheticConfig: vi.fn().mockResolvedValue({ enabled: false }),
+  toggleSyntheticConfig: vi.fn().mockResolvedValue({ success: true, enabled: true }),
 }))
 
 beforeEach(() => {
