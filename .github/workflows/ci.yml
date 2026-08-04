@@ -86,6 +86,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Generate ephemeral JWT secret for CI
+        run: |
+          echo "JWT_SECRET_KEY=$(head -c32 /dev/urandom | base64)" >> $GITHUB_ENV
+
       - name: Build Docker images
         run: |
           docker compose build --no-cache
