@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, memo } from 'react';
+import { useState, useRef, useEffect, memo } from 'react';
 import { Send, Cpu, Terminal, MessageSquare, FileText } from 'lucide-react';
 
 import type { ChatMessage } from '../types';
@@ -52,7 +52,7 @@ function AICopilot({ onSendMessage, chatHistory, isSendingMessage }: AICopilotPr
     chatHistory.forEach((msg) => {
       const isUser = msg.sender === 'user';
       mdContent += `### [${isUser ? 'ANALYST QUESTION' : 'SOC COPILOT RESPONSE'}]\n`;
-      if (!isUser && msg.context_alerts_used > 0) {
+      if (!isUser && (msg.context_alerts_used ?? 0) > 0) {
         mdContent += `*RAG Security Context Alerts Referenced: ${msg.context_alerts_used}*\n\n`;
       }
       mdContent += `${msg.text}\n\n---\n\n`;
@@ -155,7 +155,7 @@ function AICopilot({ onSendMessage, chatHistory, isSendingMessage }: AICopilotPr
               <div key={index} className={`flex flex-col gap-1 ${isUser ? 'items-end' : 'items-start'}`}>
                 <div className="flex items-center gap-1 text-[9px] text-zinc-500 uppercase">
                   <span>{isUser ? 'Analyst' : 'SOC Copilot'}</span>
-                  {!isUser && msg.context_alerts_used > 0 && (
+                  {!isUser && (msg.context_alerts_used ?? 0) > 0 && (
                     <span className="bg-purple-500/10 text-purple-400 border border-purple-500/20 px-1.5 py-0.5 rounded text-[8px]">RAG Context: {msg.context_alerts_used}</span>
                   )}
                 </div>

@@ -1,4 +1,4 @@
-import React, { Component, type ReactNode, type ErrorInfo } from 'react';
+import { Component, type ReactNode, type ErrorInfo } from 'react';
 import { ShieldAlert, RefreshCw } from 'lucide-react';
 
 interface ErrorBoundaryProps {

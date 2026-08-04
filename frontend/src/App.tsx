@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, Suspense, lazy } from 'react';
+import { useState, useEffect, useCallback, Suspense, lazy } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import DashboardHeader from './components/DashboardHeader';
 import OverviewCards from './components/OverviewCards';
@@ -10,7 +10,7 @@ import LoginPage from './components/LoginPage';
 import { useToast } from './context/toast-context';
 import {
   getOverview, getSeverityDistribution, getTimeline, getTopSources, getGeoData,
-  getAlerts, getAlertDetail, respondToAlert, sendChatMessage, trainModel,
+  getAlerts, getAlertDetail, sendChatMessage, trainModel,
   verifyAlert, checkHealth, setAuthToken, getSyntheticConfig, toggleSyntheticConfig,
 } from './utils/api';
 import { Shield, TrendingUp, Cpu, Terminal, Target, Database } from 'lucide-react';
@@ -31,6 +31,8 @@ const TABS = [
   { id: 'audit' as const, label: 'SOAR Audit Trail', icon: Terminal },
 ];
 
+type TabId = typeof TABS[number]['id'];
+
 function App() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -50,7 +52,7 @@ function App() {
 
   const tabFromPath = location.pathname.replace('/', '') || 'triage';
   const validTab = TABS.find(t => t.id === tabFromPath)?.id || 'triage';
-  const [activeTab, setActiveTab] = useState(validTab);
+  const [activeTab, setActiveTab] = useState<TabId>(validTab as TabId);
 
   const [alerts, setAlerts] = useState<AlertEvent[]>([]);
   const [totalAlerts, setTotalAlerts] = useState(0);
@@ -59,8 +61,6 @@ function App() {
   const [filters, setFilters] = useState({ search: '', severity: '', eventType: '' });
 
   const [selectedAlert, setSelectedAlert] = useState<AlertEvent | null>(null);
-  const [isResponding, setIsResponding] = useState<string | null>(null);
-  const [responseLogs, setResponseLogs] = useState<Record<string, unknown>>({});
 
   const [stats, setStats] = useState<StatsOverview | null>(null);
   const [timeline, setTimeline] = useState<{ time: string; count: number }[]>([]);
@@ -151,10 +151,12 @@ function App() {
   }, [isSyntheticEnabled, addToast]);
 
   useEffect(() => {
-    setActiveTab(tabFromPath);
-  }, [location.pathname, tabFromPath]);
+    const tabFromPath = location.pathname.replace('/', '') || 'triage';
+    const validTab = TABS.find(t => t.id === tabFromPath)?.id || 'triage';
+    setActiveTab(validTab as TabId);
+  }, [location.pathname]);
 
-  const handleTabChange = useCallback((tabId: string) => {
+  const handleTabChange = useCallback((tabId: TabId) => {
     setActiveTab(tabId);
     navigate(tabId === 'triage' ? '/' : `/${tabId}`);
   }, [navigate]);
@@ -237,23 +239,7 @@ function App() {
     }
   }, []);
 
-  const handleRespondAction = useCallback(async (action: string) => {
-    if (!selectedAlert) return;
-    setIsResponding(action);
-    try {
-      const result = await respondToAlert(selectedAlert.id, action);
-      setResponseLogs((prev) => ({ ...prev, [selectedAlert.id]: result }));
-      addToast({ type: 'success', title: 'Action Executed', message: `${action} completed successfully.` });
-      const updatedDetail = await getAlertDetail(selectedAlert.id);
-      setSelectedAlert(updatedDetail);
-    } catch (err) {
-      console.error('Playbook execution failed:', err);
-      addToast({ type: 'error', title: 'Action Failed', message: `Failed to execute ${action}.` });
-    } finally {
-      setIsResponding(null);
-    }
-  }, [selectedAlert, addToast]);
-
+  
   const handleSendChatMessage = useCallback(async (msgText: string) => {
     if (!msgText.trim()) return;
     const userMsg: ChatMessage = { sender: 'user', text: msgText };
@@ -375,9 +361,6 @@ function App() {
                 {selectedAlert ? (
                   <AlertDetailSidebar
                     alert={selectedAlert}
-                    onRespond={handleRespondAction}
-                    responseLogs={responseLogs}
-                    isResponding={isResponding}
                     onClose={() => setSelectedAlert(null)}
                     onVerifyAlert={handleVerifyAlert}
                   />
@@ -409,6 +392,8 @@ function App() {
                   sources={topSources}
                   selectedRange={selectedRange}
                   onRangeChange={setSelectedRange}
+                  eventTypes={[]} // TODO: Add event types data
+                  riskDistribution={[]} // TODO: Add risk distribution data
                 />
               </Suspense>
             </div>

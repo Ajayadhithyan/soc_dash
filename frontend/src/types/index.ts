@@ -196,3 +196,5 @@ export interface User {
 
 export type SortField = 'timestamp' | 'severity' | 'event_type' | 'src_ip' | 'dest_ip' | 'risk_score';
 export type SortOrder = 'asc' | 'desc';
+
+export type TabId = 'triage' | 'analytics' | 'mitre' | 'copilot' | 'ingest' | 'audit';

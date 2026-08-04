@@ -22,10 +22,19 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
       setAuthToken(data.access_token);
       localStorage.setItem('soc_token', data.access_token);
       onLogin(data.access_token);
-    } catch (err: any) {
+    } catch (err) {
       console.error('Login error details:', err);
-      const detail = err.response?.data?.detail;
-      const msg = detail || err.message || 'Invalid username or password';
+      interface ErrorResponse {
+        response?: {
+          data: {
+            detail: string;
+          };
+        };
+        message?: string;
+      }
+      const { response, message } = err as ErrorResponse;
+      const detail = response?.data?.detail;
+      const msg = detail || message || 'Invalid username or password';
       setError(`Login failed: ${msg}. Contact your administrator if you need access.`);
     } finally {
       setIsLoading(false);

@@ -1,4 +1,4 @@
-import React, { memo } from 'react';
+import { memo } from 'react';
 import { AlertTriangle, ShieldAlert, Zap, Award } from 'lucide-react';
 import { useCountUp } from '../hooks/useCountUp';
 import type { StatsOverview } from '../types';

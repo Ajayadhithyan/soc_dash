@@ -1,6 +1,5 @@
 import React, { useState, memo, useCallback, useMemo } from 'react';
 import { Search, Shield, ChevronLeft, ChevronRight, Filter, Download, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
-import { useDebounce } from '../hooks/useDebounce';
 import { exportAlertsToCsv } from '../utils/api';
 import { AlertTableSkeleton } from './LoadingSkeleton';
 
@@ -32,8 +31,6 @@ function AlertsTable({
   const [sortField, setSortField] = useState<SortField>('timestamp');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
   const [hoveredRow, setHoveredRow] = useState<string | null>(null);
-
-  const debouncedSearch = useDebounce(filters.search, 300);
 
   const severities = ['ALL', 'CRITICAL', 'HIGH', 'MEDIUM', 'LOW'];
   const eventTypes = [
@@ -233,16 +230,18 @@ function AlertsTable({
                     <td className="py-3 px-3 text-blue-400 font-semibold">{alert.src_ip}</td>
                     <td className="py-3 px-3 text-zinc-400">{alert.dest_ip}</td>
                     <td className="py-3 px-3 text-right font-bold">
-                      <span className={alert.risk_score > 75 ? 'text-rose-400' : alert.risk_score > 50 ? 'text-amber-400' : 'text-emerald-400'}>
-                        {alert.risk_score}
-                      </span>
+                      {(riskScore => (
+                        <span className={riskScore > 75 ? 'text-rose-400' : riskScore > 50 ? 'text-amber-400' : 'text-emerald-400'}>
+                          {riskScore}
+                        </span>
+                      ))(alert.risk_score ?? 0)}
                     </td>
                   </tr>
                 );
               })
             ) : (
               <tr>
-                <td colSpan="6" className="py-12 text-center text-zinc-500 text-xs">No security alerts matching search query.</td>
+                <td colSpan={6} className="py-12 text-center text-zinc-500 text-xs">No security alerts matching search query.</td>
               </tr>
             )}
           </tbody>

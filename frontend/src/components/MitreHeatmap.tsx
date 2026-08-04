@@ -221,7 +221,6 @@ function MitreHeatmap() {
               {/* Matrix Rows */}
               <div className="flex flex-col gap-[2px]">
                 {filteredTechniques.map(tech => {
-                  const primaryTactic = tech.tactic.split(',')[0].trim();
                   return (
                     <div key={tech.technique_id} className="flex items-center group">
                       {/* Technique Label */}

@@ -1,4 +1,4 @@
-import React, { useState, memo } from 'react';
+import { useState, memo } from 'react';
 import { Target, MapPin, Shield } from 'lucide-react';
 import type { GeoData } from '../types';
 
