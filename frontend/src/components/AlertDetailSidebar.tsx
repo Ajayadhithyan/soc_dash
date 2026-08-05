@@ -1,7 +1,7 @@
 import { useState, memo } from 'react';
 import {
   ShieldAlert, Terminal, Activity, GitPullRequest, Clock, X,
-  Radar, Zap, Target
+  Radar, Zap, Target, Brain, Play, ArrowUpRight, Bell, Fingerprint, FileSearch, RotateCw
 } from 'lucide-react';
 
 import type { AlertEvent } from '../types';
@@ -10,9 +10,12 @@ interface AlertDetailSidebarProps {
   alert: AlertEvent | null;
   onClose: () => void;
   onVerifyAlert: (alertId: string, status: string) => Promise<void>;
+  onRespond: (action: string) => void;
+  responseLogs: Record<string, any>;
+  isResponding: string | null;
 }
 
-function AlertDetailSidebar({ alert, onClose, onVerifyAlert }: AlertDetailSidebarProps) {
+function AlertDetailSidebar({ alert, onClose, onVerifyAlert, onRespond, responseLogs, isResponding }: AlertDetailSidebarProps) {
   const [activeTab, setActiveTab] = useState<'triage' | 'mitre' | 'playbook' | 'intel'>('triage');
   const [isVerifying, setIsVerifying] = useState<string | null>(null);
 
@@ -28,6 +31,14 @@ function AlertDetailSidebar({ alert, onClose, onVerifyAlert }: AlertDetailSideba
     if (score > 75) return 'bg-rose-500';
     if (score > 50) return 'bg-amber-500';
     return 'bg-emerald-500';
+  };
+
+  const actionButtonColor: Record<string, string> = {
+    rose: 'bg-rose-950/20 hover:bg-rose-900/30 border border-rose-900/30 hover:border-rose-700/80 text-rose-300 font-semibold py-2 px-3 rounded-lg flex items-center justify-between text-[11px] transition-colors disabled:opacity-40 cursor-pointer w-full',
+    amber: 'bg-amber-950/20 hover:bg-amber-900/30 border border-amber-900/30 hover:border-amber-700/80 text-amber-300 font-semibold py-2 px-3 rounded-lg flex items-center justify-between text-[11px] transition-colors disabled:opacity-40 cursor-pointer w-full',
+    blue: 'bg-blue-950/20 hover:bg-blue-900/30 border border-blue-900/30 hover:border-blue-700/80 text-blue-300 font-semibold py-2 px-3 rounded-lg flex items-center justify-between text-[11px] transition-colors disabled:opacity-40 cursor-pointer w-full',
+    violet: 'bg-violet-950/20 hover:bg-violet-900/30 border border-violet-900/30 hover:border-violet-700/80 text-violet-300 font-semibold py-2 px-3 rounded-lg flex items-center justify-between text-[11px] transition-colors disabled:opacity-40 cursor-pointer w-full',
+    emerald: 'bg-emerald-950/20 hover:bg-emerald-900/30 border border-emerald-900/30 hover:border-emerald-700/80 text-emerald-300 font-semibold py-2 px-3 rounded-lg flex items-center justify-between text-[11px] transition-colors disabled:opacity-40 cursor-pointer w-full',
   };
 
   const tabs = [
@@ -166,36 +177,242 @@ function AlertDetailSidebar({ alert, onClose, onVerifyAlert }: AlertDetailSideba
             {activeTab === 'mitre' && (
               <div className="flex flex-col gap-3">
                 <div className="bg-blue-950/15 border border-blue-900/30 rounded-xl p-4">
-                  <div className="justify-between items-center border-b border-blue-900/20 pb-2 mb-3">
+                  <div className="flex justify-between items-center border-b border-blue-900/20 pb-2 mb-3">
                     <span className="text-blue-400 font-semibold text-xs flex items-center gap-1.5">
                       <GitPullRequest className="w-3.5 h-3.5" />MITRE ATT&CK Classification
                     </span>
+                    <span className="bg-blue-500/10 border border-blue-500/20 text-blue-400 font-semibold text-[10px] px-2 py-0.5 rounded">{alert.mitre?.technique_id || 'N/A'}</span>
+                  </div>
+                  <div className="flex flex-col gap-3">
+                    <div>
+                      <div className="text-zinc-500 text-[10px] uppercase font-semibold">Technique Name</div>
+                      <div className="text-zinc-200 text-xs font-semibold mt-0.5">{alert.mitre?.technique_name || 'N/A'}</div>
+                    </div>
+                    <div>
+                      <div className="text-zinc-500 text-[10px] uppercase font-semibold">Attack Tactic</div>
+                      <div className="text-amber-400 font-semibold text-xs mt-0.5">{alert.mitre?.tactic || 'N/A'}</div>
+                    </div>
+                    <div>
+                      <div className="text-zinc-500 text-[10px] uppercase font-semibold">Tactic Description</div>
+                      <p className="text-zinc-300 text-xs font-sans mt-1 leading-relaxed">{alert.mitre?.description || 'No mapping description available.'}</p>
+                    </div>
                   </div>
                 </div>
+
+                {alert.mitre?.sub_techniques && alert.mitre.sub_techniques.length > 0 && (
+                  <div className="bg-zinc-900/30 border border-zinc-800/80 rounded-xl p-3">
+                    <div className="text-[10px] text-zinc-400 font-semibold mb-2 uppercase tracking-wide">Targeted Sub-Techniques</div>
+                    <div className="flex flex-col gap-1.5">
+                      {alert.mitre.sub_techniques.map((sub, idx) => (
+                        <div key={idx} className="bg-zinc-950/40 border border-zinc-800/60 rounded-lg p-2 text-[10px] text-zinc-300">{sub}</div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {alert.mitre?.llm_analysis && (
+                  <div className="bg-purple-950/15 border border-purple-900/30 rounded-xl p-3">
+                    <div className="text-[10px] text-purple-400 font-semibold mb-1 uppercase flex items-center gap-1.5">
+                      <Brain className="w-3 h-3" />Tactical Analyst Enrichment
+                    </div>
+                    <p className="text-zinc-300 text-xs italic leading-relaxed font-sans">{alert.mitre.llm_analysis}</p>
+                  </div>
+                )}
               </div>
             )}
 
             {activeTab === 'playbook' && (
               <div className="flex flex-col gap-3">
-                <div className="bg-red-950/15 border border-red-900/30 rounded-xl p-4">
-                  <div className="justify-between items-center border-b border-red-900/20 pb-2 mb-3">
-                    <span className="text-red-400 font-semibold text-xs flex items-center gap-1.5">
-                      <Zap className="w-3.5 h-3.5" />Playbook Actions
-                    </span>
+                {alert.playbook && (
+                  <div className="bg-zinc-900/30 border border-zinc-800/80 rounded-xl p-3">
+                    <div className="flex justify-between items-center border-b border-zinc-800/50 pb-2 mb-2">
+                      <span className="font-semibold text-zinc-200 text-xs uppercase">{alert.playbook.name}</span>
+                      <span className="text-[9px] text-zinc-500 font-semibold">EST. TIME: {alert.playbook.estimated_time}</span>
+                    </div>
+                    <div className="flex flex-col gap-2 text-[11px] text-zinc-300 max-h-[140px] overflow-y-auto">
+                      {alert.playbook.steps?.map((step, idx) => (
+                        <div key={idx} className="leading-relaxed border-b border-zinc-800/40 pb-1.5">{step}</div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Auto Playbook Actions */}
+                {alert.auto_playbook_actions && alert.auto_playbook_actions.length > 0 && (
+                  <div className="bg-emerald-950/15 border border-emerald-900/30 rounded-xl p-3">
+                    <div className="text-[10px] text-emerald-400 font-semibold mb-2 uppercase tracking-wide flex items-center gap-1.5">
+                      <Zap className="w-3.5 h-3.5" />Auto-Triggered Playbook Actions
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      {alert.auto_playbook_actions.map((action, idx) => (
+                        <div key={idx} className="bg-zinc-950/40 border border-zinc-800/60 rounded-lg p-2 text-[10px] flex justify-between items-center">
+                          <span className="text-emerald-300 font-semibold">{action.action}</span>
+                          <span className={`px-1.5 py-0.5 rounded text-[8px] font-bold uppercase ${
+                            action.status === 'SUCCESS' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' :
+                            action.status === 'FAILED' ? 'bg-rose-500/10 text-rose-400 border border-rose-500/20' :
+                            'bg-amber-500/10 text-amber-400 border border-amber-500/20'
+                          }`}>{action.status}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <div className="bg-zinc-900/30 border border-zinc-800/80 rounded-xl p-3">
+                  <div className="text-[10px] text-zinc-400 font-semibold mb-3 uppercase tracking-wide">Orchestrated Response Actions</div>
+                  <div className="flex flex-col gap-2">
+                    {[
+                      { action: 'block_ip', icon: Play, label: 'Firewall: Block Attacker IP', color: 'rose' },
+                      { action: 'quarantine_host', icon: Play, label: 'EDR: Quarantine Host Segment', color: 'amber' },
+                      { action: 'create_ticket', icon: Play, label: 'Jira: Dispatch Ticket (Tier-2)', color: 'blue' },
+                      { action: 'escalate_to_siem', icon: ArrowUpRight, label: 'SIEM: Escalate to Splunk/Sentinel', color: 'violet' },
+                      { action: 'notify_slack', icon: Bell, label: 'Slack: Notify #soc-critical-alerts', color: 'emerald' },
+                    ].map(({ action, icon: BtnIcon, label, color }) => (
+                      <button
+                        key={action}
+                        onClick={() => onRespond(action)}
+                        disabled={isResponding !== null}
+                        className={actionButtonColor[color]}
+                      >
+                        <span className="flex items-center gap-2"><BtnIcon className="w-3.5 h-3.5" />{label}</span>
+                        {isResponding === action && <RotateCw className="w-3.5 h-3.5 animate-spin" />}
+                      </button>
+                    ))}
                   </div>
                 </div>
+
+                {responseLogs[alert.id] && (
+                  <div className="bg-zinc-950 border border-zinc-800/80 rounded-xl p-3">
+                    <div className="text-[10px] text-emerald-400 font-semibold mb-2 flex items-center gap-1.5">
+                      <Terminal className="w-3.5 h-3.5 text-emerald-400" />Playbook Execution Log
+                    </div>
+                    <div className="font-mono text-[9px] leading-relaxed text-zinc-300 max-h-[120px] overflow-y-auto bg-zinc-950/40 p-2 rounded-lg border border-zinc-800/50">
+                      <div className="text-emerald-400 font-semibold">&gt; Status: {responseLogs[alert.id]?.success ? 'SUCCESSFUL' : 'FAILED'}</div>
+                      <div className="text-zinc-400 mt-1">&gt; Action: {responseLogs[alert.id]?.action}</div>
+                      <div className="text-zinc-200 mt-1">&gt; Message: {responseLogs[alert.id]?.message}</div>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
             {activeTab === 'intel' && (
               <div className="flex flex-col gap-3">
-                <div className="bg-purple-950/15 border border-purple-900/30 rounded-xl p-4">
-                  <div className="justify-between items-center border-b border-purple-900/20 pb-2 mb-3">
-                    <span className="text-purple-400 font-semibold text-xs flex items-center gap-1.5">
-                      <Radar className="w-3.5 h-3.5" />Threat Intelligence
-                    </span>
+                {/* Threat Intel */}
+                <div className="bg-rose-950/15 border border-rose-900/30 rounded-xl p-3">
+                  <div className="text-[10px] text-rose-400 font-semibold mb-2 flex items-center gap-1.5 uppercase tracking-wide">
+                    <Radar className="w-3.5 h-3.5" />Threat Intelligence
                   </div>
+                  {alert.threat_intel ? (
+                    <div className="flex flex-col gap-1.5 text-[10px]">
+                      {[
+                        { label: 'Known Malicious:', value: alert.threat_intel.is_known_malicious ? '⚠ YES' : '✓ CLEAN', color: alert.threat_intel.is_known_malicious ? 'text-rose-400' : 'text-emerald-400' },
+                        alert.threat_intel.blocklist_source && { label: 'Blocklist Source:', value: alert.threat_intel.blocklist_source, color: 'text-rose-300' },
+                        alert.threat_intel.threat_category && { label: 'Category:', value: alert.threat_intel.threat_category.toUpperCase(), color: 'text-zinc-200' },
+                        { label: 'Analyst Blocked:', value: alert.threat_intel.analyst_blocked ? 'YES' : 'NO', color: alert.threat_intel.analyst_blocked ? 'text-amber-400' : 'text-zinc-400' },
+                      ].filter(Boolean).map(({ label, value, color }: any, idx: number) => (
+                        <div key={idx} className="flex justify-between items-center border-b border-zinc-800/50 pb-1.5 last:border-0">
+                          <span className="text-zinc-500">{label}</span>
+                          <span className={`${color} font-semibold`}>{value}</span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-zinc-500 text-[10px] italic">No threat intel data available.</div>
+                  )}
                 </div>
+
+                {/* SIGMA */}
+                <div className="bg-amber-950/10 border border-amber-900/30 rounded-xl p-3">
+                  <div className="text-[10px] text-amber-400 font-semibold mb-2 flex items-center gap-1.5 uppercase tracking-wide">
+                    <Fingerprint className="w-3.5 h-3.5" />SIGMA Rule Matches
+                  </div>
+                  {alert.sigma_matches && alert.sigma_matches.length > 0 ? (
+                    <div className="flex flex-col gap-1.5">
+                      {alert.sigma_matches.map((match, idx) => (
+                        <div key={idx} className="bg-zinc-950/40 border border-zinc-800/60 rounded-lg p-2 text-[10px]">
+                          <div className="flex justify-between items-center">
+                            <span className="text-amber-300 font-semibold">{match.rule_name}</span>
+                            <span className={`px-1.5 py-0.5 rounded text-[8px] font-bold uppercase ${
+                              match.severity === 'CRITICAL' ? 'bg-rose-500/10 border border-rose-500/20 text-rose-400' :
+                              match.severity === 'HIGH' ? 'bg-amber-500/10 border border-amber-500/20 text-amber-400' :
+                              'bg-blue-500/10 border border-blue-500/20 text-blue-400'
+                            }`}>{match.severity}</span>
+                          </div>
+                          <div className="text-zinc-400 mt-1 text-[9px] leading-relaxed">{match.description}</div>
+                          {match.tags && match.tags.length > 0 && (
+                            <div className="flex gap-1 mt-1.5 flex-wrap">
+                              {match.tags.map((tag, tidx) => (
+                                <span key={tidx} className="bg-zinc-800 text-zinc-400 px-1.5 py-0.5 rounded text-[8px]">{tag}</span>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-zinc-500 text-[10px] italic">No SIGMA rules triggered.</div>
+                  )}
+                </div>
+
+                {/* Correlation */}
+                {alert.correlation && alert.correlation.is_correlated && (
+                  <div className="bg-violet-950/15 border border-violet-900/30 rounded-xl p-3">
+                    <div className="text-[10px] text-violet-400 font-semibold mb-2 flex items-center gap-1.5 uppercase tracking-wide">
+                      <FileSearch className="w-3.5 h-3.5" />Attack Campaign Correlation
+                    </div>
+                    <div className="flex flex-col gap-1.5 text-[10px]">
+                      {[
+                        { label: 'Campaign ID:', value: alert.correlation.campaign_id, color: 'text-violet-300' },
+                        { label: 'Primary Pattern:', value: alert.correlation.primary_pattern, color: 'text-zinc-200' },
+                        { label: 'Risk Boost:', value: `+${alert.correlation.total_risk_boost}`, color: 'text-rose-400' },
+                        { label: 'Related Alerts:', value: alert.correlation.related_alert_count, color: 'text-zinc-200' },
+                      ].map(({ label, value, color }, idx) => (
+                        <div key={idx} className="flex justify-between items-center border-b border-zinc-800/50 pb-1.5 last:border-0">
+                          <span className="text-zinc-500">{label}</span>
+                          <span className={`${color} font-semibold`}>{value}</span>
+                        </div>
+                      ))}
+                    </div>
+                    {alert.correlation.patterns && alert.correlation.patterns.length > 1 && (
+                      <div className="mt-2 pt-2 border-t border-zinc-800/50">
+                        <div className="text-[9px] text-zinc-500 font-semibold uppercase mb-1">All Patterns</div>
+                        {alert.correlation.patterns.map((p, pidx) => (
+                          <div key={pidx} className="text-[9px] text-zinc-400 py-0.5">• {p.pattern_name}</div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Feedback Confidence */}
+                {alert.feedback && (
+                  <div className="bg-zinc-900/30 border border-zinc-800/80 rounded-xl p-3">
+                    <div className="text-[10px] text-zinc-400 font-semibold mb-2.5 uppercase tracking-wide">ML Feedback Confidence</div>
+                    <div className="flex items-center gap-3">
+                      <div className="flex-1">
+                        <div className="w-full bg-zinc-800 h-2 rounded-full overflow-hidden">
+                          <div
+                            className={`h-full rounded-full transition-all duration-500 ${
+                              alert.feedback.feedback_confidence > 0.7 ? 'bg-emerald-500' :
+                              alert.feedback.feedback_confidence > 0.4 ? 'bg-amber-500' : 'bg-rose-500'
+                            }`}
+                            style={{ width: `${(alert.feedback.feedback_confidence * 100).toFixed(0)}%` }}
+                          />
+                        </div>
+                      </div>
+                      <span className={`text-xs font-bold ${
+                        alert.feedback.feedback_confidence > 0.7 ? 'text-emerald-400' :
+                        alert.feedback.feedback_confidence > 0.4 ? 'text-amber-400' : 'text-rose-400'
+                      }`}>{(alert.feedback.feedback_confidence * 100).toFixed(0)}%</span>
+                    </div>
+                    <div className="flex justify-between items-center mt-2 text-[9px]">
+                      <span className="text-zinc-500">True Positive Probability</span>
+                      {alert.feedback.suppress_recommendation && <span className="text-amber-400 font-semibold">⚠ Suppress Recommended</span>}
+                      {!alert.feedback.classifier_trained && <span className="text-zinc-600 italic">Classifier untrained</span>}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>

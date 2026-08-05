@@ -61,6 +61,8 @@ function App() {
   const [filters, setFilters] = useState({ search: '', severity: '', eventType: '' });
 
   const [selectedAlert, setSelectedAlert] = useState<AlertEvent | null>(null);
+  const [responseLogs, setResponseLogs] = useState<Record<string, any>>({});
+  const [isResponding, setIsResponding] = useState<string | null>(null);
 
   const [stats, setStats] = useState<StatsOverview | null>(null);
   const [timeline, setTimeline] = useState<{ time: string; count: number }[]>([]);
@@ -239,7 +241,24 @@ function App() {
     }
   }, []);
 
-  
+  const handleRespondAction = useCallback(async (action: string) => {
+    if (!selectedAlert) return;
+    setIsResponding(action);
+    try {
+      const result = await respondToAlert(selectedAlert.id, action);
+      setResponseLogs((prev) => ({ ...prev, [selectedAlert.id]: result }));
+      addToast({ type: 'success', title: 'Action Executed', message: `${action} completed successfully.` });
+      const updatedDetail = await getAlertDetail(selectedAlert.id);
+      setSelectedAlert(updatedDetail);
+    } catch (err) {
+      console.error('Playbook execution failed:', err);
+      addToast({ type: 'error', title: 'Action Failed', message: `Failed to execute ${action}.` });
+    } finally {
+      setIsResponding(null);
+    }
+  }, [selectedAlert, addToast]);
+
+
   const handleSendChatMessage = useCallback(async (msgText: string) => {
     if (!msgText.trim()) return;
     const userMsg: ChatMessage = { sender: 'user', text: msgText };
@@ -330,9 +349,8 @@ function App() {
                 <button
                   key={tab.id}
                   onClick={() => handleTabChange(tab.id)}
-                  className={`flex items-center gap-2 px-4 py-1.5 rounded-md transition-all font-medium cursor-pointer ${
-                    activeTab === tab.id ? 'bg-zinc-800 text-zinc-100 shadow-sm' : 'text-zinc-400 hover:text-zinc-200'
-                  }`}
+                  className={`flex items-center gap-2 px-4 py-1.5 rounded-md transition-all font-medium cursor-pointer ${activeTab === tab.id ? 'bg-zinc-800 text-zinc-100 shadow-sm' : 'text-zinc-400 hover:text-zinc-200'
+                    }`}
                 >
                   <Icon className="w-3.5 h-3.5" />
                   {tab.label}
@@ -363,6 +381,9 @@ function App() {
                     alert={selectedAlert}
                     onClose={() => setSelectedAlert(null)}
                     onVerifyAlert={handleVerifyAlert}
+                    onRespond={handleRespondAction}
+                    responseLogs={responseLogs}
+                    isResponding={isResponding}
                   />
                 ) : (
                   <div className="flex flex-col h-full gap-6">
