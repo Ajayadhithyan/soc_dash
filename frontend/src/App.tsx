@@ -12,6 +12,7 @@ import {
   getOverview, getSeverityDistribution, getTimeline, getTopSources, getGeoData,
   getAlerts, getAlertDetail, sendChatMessage, trainModel,
   verifyAlert, checkHealth, setAuthToken, getSyntheticConfig, toggleSyntheticConfig,
+  respondToAlert, getEventTypes, getRiskDistribution,
 } from './utils/api';
 import { Shield, TrendingUp, Cpu, Terminal, Target, Database } from 'lucide-react';
 import type { AlertEvent, ChatMessage, SystemHealth, StatsOverview } from './types';
@@ -69,6 +70,8 @@ function App() {
   const [severityDist, setSeverityDist] = useState<{ severity: string; count: number }[]>([]);
   const [topSources, setTopSources] = useState<{ ip: string; count: number; last_seen: string; primary_attack: string }[]>([]);
   const [geoData, setGeoData] = useState<{ country: string; count: number; lat: number; lng: number }[]>([]);
+  const [eventTypes, setEventTypes] = useState<any[]>([]);
+  const [riskDistribution, setRiskDistribution] = useState<any[]>([]);
   const [selectedRange, setSelectedRange] = useState('6h');
 
   const [wsStatus, setWsStatus] = useState('disconnected');
@@ -80,15 +83,17 @@ function App() {
 
   const fetchDashboardStats = useCallback(async () => {
     try {
-      const [overviewData, sevData, timeData, srcData, mapData] = await Promise.all([
+      const [overviewData, sevData, timeData, srcData, mapData, eventTypesData, riskDistData] = await Promise.all([
         getOverview(), getSeverityDistribution(), getTimeline(selectedRange),
-        getTopSources(), getGeoData(),
+        getTopSources(), getGeoData(), getEventTypes(), getRiskDistribution(),
       ]);
       setStats(overviewData);
       setSeverityDist(sevData.distribution);
       setTimeline(timeData.timeline);
       setTopSources(srcData.sources);
       setGeoData(mapData.geo_threats);
+      setEventTypes(eventTypesData.event_types);
+      setRiskDistribution(riskDistData.risk_distribution);
     } catch (err) {
       console.error('Error fetching dashboard stats:', err);
     }
@@ -413,8 +418,8 @@ function App() {
                   sources={topSources}
                   selectedRange={selectedRange}
                   onRangeChange={setSelectedRange}
-                  eventTypes={[]} // TODO: Add event types data
-                  riskDistribution={[]} // TODO: Add risk distribution data
+                  eventTypes={eventTypes}
+                  riskDistribution={riskDistribution}
                 />
               </Suspense>
             </div>
