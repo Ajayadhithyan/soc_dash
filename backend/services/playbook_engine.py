@@ -5,6 +5,7 @@ and returns a list of actions that should be auto-triggered.
 """
 
 import os
+import random
 import logging
 from datetime import datetime
 
@@ -131,9 +132,12 @@ class PlaybookEngine:
             if matched:
                 now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                 for action in actions:
+                    # Simulated orchestration outcome for the audit trail (SUCCESS/FAILED)
+                    status = "SUCCESS" if random.random() < 0.95 else "FAILED"
                     triggered.append({
                         "playbook_rule": rule_name,
                         "action": action,
+                        "status": status,
                         "triggered_at": now,
                         "auto_triggered": True,
                     })

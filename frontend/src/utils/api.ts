@@ -10,6 +10,7 @@ import type {
   EventTypeDistribution,
   RiskDistribution,
   MitreHeatmapData,
+  EndpointInfo,
 } from '../types';
 
 export interface TimelineData {
@@ -194,6 +195,11 @@ export const toggleSyntheticConfig = async (enabled: boolean): Promise<{ success
 
 export const ingestLogs = async (logs: (string | object)[]): Promise<{ success: boolean; count: number }> => {
   const response = await api.post('/api/alerts/ingest', { logs });
+  return response.data;
+};
+
+export const getEndpoints = async (): Promise<{ endpoints: EndpointInfo[]; total: number; offline_timeout_seconds: number }> => {
+  const response = await api.get('/api/agent/endpoints');
   return response.data;
 };
 

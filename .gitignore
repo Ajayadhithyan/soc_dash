@@ -43,3 +43,10 @@ Desktop.ini
 
 # Docker
 docker-compose.override.yml
+
+# Logs
+*.log
+
+# Database & Spool files
+db_data/
+agent/data/

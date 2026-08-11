@@ -71,6 +71,7 @@ class ThreatIntelService:
         # Dynamic cache of analyst-blocked IPs (populated from SOAR actions)
         self.analyst_blocked_ips = set()
         self.otx_api_key = getattr(config, "OTX_API_KEY", "")
+        self._otx_cache = {}
 
         logger.info(f"[ThreatIntel] Loaded {len(self.blocklist)} malicious CIDR ranges.")
 
@@ -79,10 +80,18 @@ class ThreatIntelService:
         if not self.otx_api_key:
             return None
 
+        ip_str = ip_str.strip()
+        if not ip_str or ip_str in {"0.0.0.0", "255.255.255.255", "localhost"}:
+            return None
+
         from backend.services.log_parser import is_private_ip
         if is_private_ip(ip_str):
             return None
 
+        if ip_str in self._otx_cache:
+            return self._otx_cache[ip_str]
+
+        result = None
         try:
             url = f"https://otx.alienvault.com/api/v1/indicators/IPv4/{ip_str}/general"
             req = urllib.request.Request(url)
@@ -95,7 +104,7 @@ class ThreatIntelService:
                     pulses = pulse_info.get("pulses", [])
                     pulse_names = [p.get("name") for p in pulses if p.get("name")][:3]
                     logger.info(f"[ThreatIntel] OTX Match: {ip_str} found in {pulse_count} pulse(s).")
-                    return {
+                    result = {
                         "is_known_malicious": True,
                         "blocklist_source": f"AlienVault OTX (Pulses: {pulse_count})",
                         "threat_category": "otx_reported",
@@ -107,7 +116,9 @@ class ThreatIntelService:
                     }
         except Exception as e:
             logger.warning(f"[ThreatIntel] OTX lookup failed for {ip_str}: {e}")
-        return None
+
+        self._otx_cache[ip_str] = result
+        return result
 
     def add_blocked_ip(self, ip_str):
         """Add an IP to the analyst-blocked cache (from BLOCK_IP SOAR actions)."""

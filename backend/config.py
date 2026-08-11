@@ -27,6 +27,11 @@ EVENT_GENERATION_INTERVAL = int(os.getenv("EVENT_GENERATION_INTERVAL", os.getenv
 ENABLE_SYNTHETIC_GENERATOR = os.getenv("ENABLE_SYNTHETIC_GENERATOR", "false").lower() in {"1", "true", "yes", "on"}
 CORS_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:5173,http://localhost:3000").split(",")
 
+# Endpoint Detection Agent settings
+AGENT_TOKEN = os.getenv("AGENT_TOKEN", "")
+AGENT_AGENT_ID = os.getenv("AGENT_AGENT_ID", "endpoint-01")
+AGENT_OFFLINE_TIMEOUT_SECONDS = int(os.getenv("AGENT_OFFLINE_TIMEOUT_SECONDS", "60"))
+
 WEIGHT_CVSS = 0.40
 WEIGHT_ANOMALY = 0.35
 WEIGHT_ASSET_CRITICALITY = 0.25

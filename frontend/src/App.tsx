@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, Suspense, lazy } from 'react';
+import { useState, useEffect, useCallback, useRef, Suspense, lazy } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import DashboardHeader from './components/DashboardHeader';
 import OverviewCards from './components/OverviewCards';
@@ -8,20 +8,23 @@ import AlertDetailSidebar from './components/AlertDetailSidebar';
 import ErrorBoundary from './components/ErrorBoundary';
 import LoginPage from './components/LoginPage';
 import { useToast } from './context/toast-context';
+import { useDebounce } from './hooks/useDebounce';
+import { useWebSocket } from './hooks/useWebSocket';
 import {
   getOverview, getSeverityDistribution, getTimeline, getTopSources, getGeoData,
   getAlerts, getAlertDetail, sendChatMessage, trainModel,
   verifyAlert, checkHealth, setAuthToken, getSyntheticConfig, toggleSyntheticConfig,
   respondToAlert, getEventTypes, getRiskDistribution,
 } from './utils/api';
-import { Shield, TrendingUp, Cpu, Terminal, Target, Database } from 'lucide-react';
-import type { AlertEvent, ChatMessage, SystemHealth, StatsOverview } from './types';
+import { Shield, TrendingUp, Cpu, Terminal, Target, Database, MonitorCog } from 'lucide-react';
+import type { AlertEvent, ChatMessage, EventTypeDistribution, RiskDistribution, SystemHealth, StatsOverview } from './types';
 
 const AnalyticsCharts = lazy(() => import('./components/AnalyticsCharts'));
 const AICopilot = lazy(() => import('./components/AICopilot'));
 const SOARAuditLogs = lazy(() => import('./components/SOARAuditLogs'));
 const MitreHeatmap = lazy(() => import('./components/MitreHeatmap'));
 const IngestionHub = lazy(() => import('./components/IngestionHub'));
+const EndpointsTable = lazy(() => import('./components/EndpointsTable'));
 
 const TABS = [
   { id: 'triage' as const, label: 'Incident Triage', icon: Shield },
@@ -29,6 +32,7 @@ const TABS = [
   { id: 'mitre' as const, label: 'MITRE ATT&CK', icon: Target },
   { id: 'copilot' as const, label: 'AI Copilot Lab', icon: Cpu },
   { id: 'ingest' as const, label: 'Telemetry Ingest', icon: Database },
+  { id: 'endpoints' as const, label: 'Endpoint Agents', icon: MonitorCog },
   { id: 'audit' as const, label: 'SOAR Audit Trail', icon: Terminal },
 ];
 
@@ -62,7 +66,7 @@ function App() {
   const [filters, setFilters] = useState({ search: '', severity: '', eventType: '' });
 
   const [selectedAlert, setSelectedAlert] = useState<AlertEvent | null>(null);
-  const [responseLogs, setResponseLogs] = useState<Record<string, any>>({});
+  const [responseLogs, setResponseLogs] = useState<Record<string, Record<string, unknown>>>({});
   const [isResponding, setIsResponding] = useState<string | null>(null);
 
   const [stats, setStats] = useState<StatsOverview | null>(null);
@@ -70,11 +74,10 @@ function App() {
   const [severityDist, setSeverityDist] = useState<{ severity: string; count: number }[]>([]);
   const [topSources, setTopSources] = useState<{ ip: string; count: number; last_seen: string; primary_attack: string }[]>([]);
   const [geoData, setGeoData] = useState<{ country: string; count: number; lat: number; lng: number }[]>([]);
-  const [eventTypes, setEventTypes] = useState<any[]>([]);
-  const [riskDistribution, setRiskDistribution] = useState<any[]>([]);
+  const [eventTypes, setEventTypes] = useState<EventTypeDistribution[]>([]);
+  const [riskDistribution, setRiskDistribution] = useState<RiskDistribution[]>([]);
   const [selectedRange, setSelectedRange] = useState('6h');
 
-  const [wsStatus, setWsStatus] = useState('disconnected');
   const [systemHealth, setSystemHealth] = useState<SystemHealth | null>(null);
   const [isSyntheticEnabled, setIsSyntheticEnabled] = useState(false);
 
@@ -99,6 +102,20 @@ function App() {
     }
   }, [selectedRange]);
 
+  // WebSocket-triggered refreshes are throttled so a burst of NEW_ALERT events
+  // doesn't fire the 7-stat API bundle on every single event.
+  const STATS_REFRESH_THROTTLE_MS = 15000;
+  const lastStatsFetchRef = useRef(0);
+
+  const refreshStatsThrottled = useCallback(() => {
+    const now = Date.now();
+    if (now - lastStatsFetchRef.current < STATS_REFRESH_THROTTLE_MS) return;
+    lastStatsFetchRef.current = now;
+    fetchDashboardStats();
+  }, [fetchDashboardStats]);
+
+  const debouncedSearch = useDebounce(filters.search, 400);
+
   const fetchAlertsList = useCallback(async () => {
     try {
       const params: Record<string, unknown> = {
@@ -108,8 +125,8 @@ function App() {
       };
       const data = await getAlerts(params);
       let fetchedAlerts = data.alerts;
-      if (filters.search) {
-        const query = filters.search.toLowerCase();
+      if (debouncedSearch) {
+        const query = debouncedSearch.toLowerCase();
         fetchedAlerts = fetchedAlerts.filter((a: AlertEvent) =>
           a.src_ip?.toLowerCase().includes(query) ||
           a.dest_ip?.toLowerCase().includes(query) ||
@@ -122,7 +139,7 @@ function App() {
     } catch (err) {
       console.error('Error loading alerts list:', err);
     }
-  }, [page, perPage, filters]);
+  }, [page, perPage, filters.severity, filters.eventType, debouncedSearch]);
 
   const fetchSystemHealth = useCallback(async () => {
     try {
@@ -171,10 +188,10 @@ function App() {
   useEffect(() => {
     fetchSystemHealth();
     if (token) {
-      fetchDashboardStats();
+      refreshStatsThrottled();
       fetchSyntheticConfigStatus();
     }
-  }, [fetchDashboardStats, fetchSystemHealth, fetchSyntheticConfigStatus, token]);
+  }, [fetchSystemHealth, refreshStatsThrottled, fetchSyntheticConfigStatus, token]);
 
   useEffect(() => {
     if (token) {
@@ -182,60 +199,26 @@ function App() {
     }
   }, [fetchAlertsList, token]);
 
-  useEffect(() => {
-    let socket: WebSocket | null = null;
-    let reconnectTimeout: ReturnType<typeof setTimeout> | null = null;
-    let reconnectAttempts = 0;
-
-    const connectWS = () => {
-      if (!token) return;
-      setWsStatus('connecting');
-      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      const wsUrl = `${protocol}//${window.location.host}/ws?token=${token}`;
-      socket = new WebSocket(wsUrl);
-
-      socket.onopen = () => {
-        setWsStatus('connected');
-        reconnectAttempts = 0;
-      };
-
-      socket.onmessage = (event) => {
-        try {
-          const payload = JSON.parse(event.data);
-          if (payload.type === 'NEW_ALERT') {
-            const newAlert: AlertEvent = payload.data;
-            newAlert.isNew = true;
-            setAlerts((prev) => {
-              const filtered = prev.filter((a) => a.id !== newAlert.id);
-              return [newAlert, ...filtered.slice(0, perPage - 1)];
-            });
-            setTotalAlerts((prev) => prev + 1);
-            fetchDashboardStats();
-            setTimeout(() => {
-              setAlerts((prev) => prev.map((a) => (a.id === newAlert.id ? { ...a, isNew: false } : a)));
-            }, 4000);
-          }
-        } catch { /* ignore non-JSON */ }
-      };
-
-      socket.onclose = () => {
-        setWsStatus('disconnected');
-        if (reconnectAttempts < 10) {
-          const delay = Math.min(3000 * Math.pow(1.5, reconnectAttempts), 30000);
-          reconnectTimeout = setTimeout(connectWS, delay);
-          reconnectAttempts++;
-        }
-      };
-
-      socket.onerror = () => { socket?.close(); };
-    };
-
-    connectWS();
-    return () => {
-      if (socket) { socket.onclose = null; socket.onerror = null; socket.close(); }
-      if (reconnectTimeout) clearTimeout(reconnectTimeout);
-    };
-  }, [perPage, fetchDashboardStats, token]);
+  const { status: wsStatus } = useWebSocket('/ws', {
+    token: token ?? undefined,
+    maxReconnectAttempts: 10,
+    onMessage: (payload) => {
+      if (payload.type !== 'NEW_ALERT') return;
+      try {
+        const newAlert: AlertEvent = payload.data as AlertEvent;
+        newAlert.isNew = true;
+        setAlerts((prev) => {
+          const filtered = prev.filter((a) => a.id !== newAlert.id);
+          return [newAlert, ...filtered.slice(0, perPage - 1)];
+        });
+        setTotalAlerts((prev) => prev + 1);
+        refreshStatsThrottled();
+        setTimeout(() => {
+          setAlerts((prev) => prev.map((a) => (a.id === newAlert.id ? { ...a, isNew: false } : a)));
+        }, 4000);
+      } catch { /* ignore malformed alert payload */ }
+    },
+  });
 
   const handleAlertSelect = useCallback(async (alertSummary: AlertEvent) => {
     try {
@@ -484,6 +467,14 @@ function App() {
           <ErrorBoundary>
             <Suspense fallback={<div className="flex-grow flex items-center justify-center py-20"><div className="text-zinc-500 text-xs font-mono">LOADING INGESTION HUB...</div></div>}>
               <IngestionHub />
+            </Suspense>
+          </ErrorBoundary>
+        )}
+
+        {activeTab === 'endpoints' && (
+          <ErrorBoundary>
+            <Suspense fallback={<div className="flex-grow flex items-center justify-center py-20"><div className="text-zinc-500 text-xs font-mono">LOADING ENDPOINT TELEMETRY...</div></div>}>
+              <EndpointsTable />
             </Suspense>
           </ErrorBoundary>
         )}

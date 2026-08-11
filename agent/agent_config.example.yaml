@@ -1,0 +1,45 @@
+# SOC Endpoint Detection Agent — example configuration
+#
+# Copy this file to `agent/agent_config.yaml` and edit the values.
+# Secrets may be supplied via environment variables instead:
+#   AGENT_TOKEN       (overrides agent_token)
+#   AGENT_BACKEND_URL (overrides backend_url)
+#   AGENT_CONFIG      (overrides where the config is loaded from)
+
+backend_url: http://localhost:8000
+agent_token: ""
+agent_id: endpoint-01
+hostname: ""
+
+# How often monitors poll the endpoint (seconds)
+collection_interval_seconds: 5
+
+log_level: INFO
+log_dir: logs
+
+queue:
+  max_in_memory: 5000      # events buffered in RAM awaiting delivery
+  max_spooled: 20000       # durable on-disk ceiling (oldest dropped past this)
+  spool_path: data/agent_spool.db
+
+sender:
+  batch_size: 50           # events per HTTPS request
+  flush_interval_seconds: 5
+  max_retries: 10          # retries per batch before giving up until next flush
+  backoff_base_seconds: 1  # exponential backoff starts here
+  backoff_max_seconds: 60  # ...and never exceeds this
+  timeout_seconds: 10
+  verify_ssl: true         # keep true in production
+
+heartbeat:
+  interval_seconds: 30
+
+monitors:
+  process: true
+  network: false           # not implemented yet
+  login: false             # not implemented yet
+  file_integrity: false    # not implemented yet
+  service: false           # not implemented yet
+  registry: false          # not implemented yet
+  usb: false               # not implemented yet
+  dns: false               # not implemented yet

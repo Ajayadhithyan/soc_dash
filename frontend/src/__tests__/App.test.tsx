@@ -20,6 +20,8 @@ vi.mock('../utils/api', () => ({
   setAuthToken: vi.fn(),
   getSyntheticConfig: vi.fn().mockResolvedValue({ enabled: false }),
   toggleSyntheticConfig: vi.fn().mockResolvedValue({ success: true, enabled: true }),
+  getEventTypes: vi.fn().mockResolvedValue({ event_types: [] }),
+  getRiskDistribution: vi.fn().mockResolvedValue({ risk_distribution: [] }),
 }))
 
 beforeEach(() => {

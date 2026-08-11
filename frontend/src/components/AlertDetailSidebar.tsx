@@ -11,7 +11,7 @@ interface AlertDetailSidebarProps {
   onClose: () => void;
   onVerifyAlert: (alertId: string, status: string) => Promise<void>;
   onRespond: (action: string) => void;
-  responseLogs: Record<string, any>;
+  responseLogs: Record<string, Record<string, unknown>>;
   isResponding: string | null;
 }
 
@@ -146,9 +146,9 @@ function AlertDetailSidebar({ alert, onClose, onVerifyAlert, onRespond, response
                   <div className="text-[10px] text-zinc-400 font-semibold mb-2.5 uppercase tracking-wide">Risk Assessment Matrix</div>
                   <div className="flex flex-col gap-1.5 text-[10px]">
                     {[
-                      { label: 'CVSS Base Severity:', value: `${alert.cvss_base ?? 'N/A'} / 10` },
-                      { label: 'Anomaly Engine Score:', value: `${(alert.anomaly_score ?? 0) * 100}%.toFixed(1)` },
-                      { label: 'Asset Criticality Factor:', value: `${(alert.asset_criticality ?? 0) * 100}%.toFixed(0)` },
+                      {label: 'CVSS Base Severity:', value: `${alert.cvss_base ?? 'N/A'} / 10` },
+                      { label: 'Anomaly Engine Score:', value: `${((alert.anomaly_score ?? 0) * 100).toFixed(1)}%` },
+                      { label: 'Asset Criticality Factor:', value: `${((alert.asset_criticality ?? 0) * 100).toFixed(0)}%` },
                       { label: 'Target IP Host:', value: alert.dest_ip, color: 'text-blue-400' },
                     ].map(({ label, value, color }, idx) => (
                       <div key={idx} className="flex justify-between items-center border-b border-zinc-800/50 pb-1.5 last:border-0">
@@ -250,8 +250,8 @@ function AlertDetailSidebar({ alert, onClose, onVerifyAlert, onRespond, response
                           <span className={`px-1.5 py-0.5 rounded text-[8px] font-bold uppercase ${
                             action.status === 'SUCCESS' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' :
                             action.status === 'FAILED' ? 'bg-rose-500/10 text-rose-400 border border-rose-500/20' :
-                            'bg-amber-500/10 text-amber-400 border border-amber-500/20'
-                          }`}>{action.status}</span>
+                            'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                          }`}>{action.status ?? 'SUCCESS'}</span>
                         </div>
                       ))}
                     </div>
@@ -288,8 +288,8 @@ function AlertDetailSidebar({ alert, onClose, onVerifyAlert, onRespond, response
                     </div>
                     <div className="font-mono text-[9px] leading-relaxed text-zinc-300 max-h-[120px] overflow-y-auto bg-zinc-950/40 p-2 rounded-lg border border-zinc-800/50">
                       <div className="text-emerald-400 font-semibold">&gt; Status: {responseLogs[alert.id]?.success ? 'SUCCESSFUL' : 'FAILED'}</div>
-                      <div className="text-zinc-400 mt-1">&gt; Action: {responseLogs[alert.id]?.action}</div>
-                      <div className="text-zinc-200 mt-1">&gt; Message: {responseLogs[alert.id]?.message}</div>
+                      <div className="text-zinc-400 mt-1">&gt; Action: {String(responseLogs[alert.id]?.action ?? '')}</div>
+                      <div className="text-zinc-200 mt-1">&gt; Message: {String(responseLogs[alert.id]?.message ?? '')}</div>
                     </div>
                   </div>
                 )}
@@ -305,12 +305,14 @@ function AlertDetailSidebar({ alert, onClose, onVerifyAlert, onRespond, response
                   </div>
                   {alert.threat_intel ? (
                     <div className="flex flex-col gap-1.5 text-[10px]">
-                      {[
-                        { label: 'Known Malicious:', value: alert.threat_intel.is_known_malicious ? '⚠ YES' : '✓ CLEAN', color: alert.threat_intel.is_known_malicious ? 'text-rose-400' : 'text-emerald-400' },
-                        alert.threat_intel.blocklist_source && { label: 'Blocklist Source:', value: alert.threat_intel.blocklist_source, color: 'text-rose-300' },
-                        alert.threat_intel.threat_category && { label: 'Category:', value: alert.threat_intel.threat_category.toUpperCase(), color: 'text-zinc-200' },
-                        { label: 'Analyst Blocked:', value: alert.threat_intel.analyst_blocked ? 'YES' : 'NO', color: alert.threat_intel.analyst_blocked ? 'text-amber-400' : 'text-zinc-400' },
-                      ].filter(Boolean).map(({ label, value, color }: any, idx: number) => (
+                      {(
+                        [
+                          { label: 'Known Malicious:', value: alert.threat_intel.is_known_malicious ? '⚠ YES' : '✓ CLEAN', color: alert.threat_intel.is_known_malicious ? 'text-rose-400' : 'text-emerald-400' },
+                          alert.threat_intel.blocklist_source && { label: 'Blocklist Source:', value: alert.threat_intel.blocklist_source, color: 'text-rose-300' },
+                          alert.threat_intel.threat_category && { label: 'Category:', value: alert.threat_intel.threat_category.toUpperCase(), color: 'text-zinc-200' },
+                          { label: 'Analyst Blocked:', value: alert.threat_intel.analyst_blocked ? 'YES' : 'NO', color: alert.threat_intel.analyst_blocked ? 'text-amber-400' : 'text-zinc-400' },
+                        ] as Array<{ label: string; value: string; color: string } | false>
+                      ).filter((row): row is { label: string; value: string; color: string } => Boolean(row)).map(({ label, value, color }, idx: number) => (
                         <div key={idx} className="flex justify-between items-center border-b border-zinc-800/50 pb-1.5 last:border-0">
                           <span className="text-zinc-500">{label}</span>
                           <span className={`${color} font-semibold`}>{value}</span>

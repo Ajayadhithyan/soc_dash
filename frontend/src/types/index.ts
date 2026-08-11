@@ -88,6 +88,7 @@ export interface Playbook {
 export interface AutoPlaybookAction {
   playbook_rule: string;
   action: string;
+  status?: 'SUCCESS' | 'FAILED';
   triggered_at: string;
   auto_triggered: boolean;
 }
@@ -194,7 +195,23 @@ export interface User {
   role: string;
 }
 
+export interface EndpointInfo {
+  agent_id: string;
+  hostname: string;
+  os: string;
+  os_version: string;
+  agent_version: string;
+  cpu_percent: number;
+  memory_percent: number;
+  disk_percent: number;
+  ip: string;
+  status: 'ONLINE' | 'OFFLINE';
+  is_online: boolean;
+  last_seen: string;
+  event_count: number;
+}
+
 export type SortField = 'timestamp' | 'severity' | 'event_type' | 'src_ip' | 'dest_ip' | 'risk_score';
 export type SortOrder = 'asc' | 'desc';
 
-export type TabId = 'triage' | 'analytics' | 'mitre' | 'copilot' | 'ingest' | 'audit';
+export type TabId = 'triage' | 'analytics' | 'mitre' | 'copilot' | 'ingest' | 'audit' | 'endpoints';

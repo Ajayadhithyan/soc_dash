@@ -23,7 +23,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from backend import config
 from backend.services.container import container
 from backend.services.rate_limiter import RateLimitMiddleware
-from backend.routes import alerts, chat, stats, audit, auth, ingest
+from backend.routes import alerts, chat, stats, audit, auth, ingest, agent
 from backend.services.auth import get_current_user, verify_jwt
 from backend.services.alert_processor import generate_event, process_event
 
@@ -58,6 +58,10 @@ async def create_indexes(db):
         await db["security_events"].create_index("risk_score")
         await db["security_events"].create_index("id", unique=True, sparse=True)
         await db["audit_logs"].create_index("timestamp")
+        await db["agent_tokens"].create_index("token_id", unique=True)
+        await db["agent_tokens"].create_index("agent_id")
+        await db["endpoints"].create_index("agent_id", unique=True)
+        await db["endpoints"].create_index("last_seen")
         logger.info("[Database] MongoDB indexes created successfully.")
     except Exception as e:
         logger.error(f"[Database] Failed to create indexes: {e}")
@@ -69,30 +73,11 @@ async def run_data_generator():
     try:
         await asyncio.sleep(2)
         db = container.db
-        ws_mgr = container.websocket_manager
+
+        from backend.services.event_pipeline import process_and_persist
 
         async def _process_and_broadcast(raw_event):
-            enriched = await process_event(
-                raw_event,
-                container.anomaly_detector,
-                container.mitre_mapper,
-                container.summarizer,
-                container.risk_scorer,
-                feedback_classifier=container.feedback_classifier,
-                correlation_engine=container.correlation_engine,
-                sigma_engine=container.sigma_engine,
-                threat_intel=container.threat_intel,
-                playbook_engine=container.playbook_engine,
-            )
-            enriched.setdefault("id", str(uuid.uuid4()))
-            await db["security_events"].insert_one(enriched)
-
-            copy = dict(enriched)
-            if "_id" in copy:
-                copy["_id"] = str(copy["_id"])
-
-            await ws_mgr.broadcast({"type": "NEW_ALERT", "data": copy})
-            return copy
+            return await process_and_persist(container, raw_event)
 
         if config.ENABLE_SYNTHETIC_GENERATOR:
             logger.info("Pre-populating 5 fresh security alerts...")
@@ -180,6 +165,12 @@ async def lifespan(app: FastAPI):
     # 2. Create indexes
     await create_indexes(db)
 
+    # 2.5. Ensure an agent token exists for endpoint agents
+    try:
+        await container.agent_auth.ensure_bootstrap_token()
+    except Exception as e:
+        logger.error(f"[Agent] Failed to bootstrap agent token: {e}")
+
     # 3. Bootstrap ML training
     logger.info("Retrieving past security events to train Isolation Forest baseline...")
     try:
@@ -247,7 +238,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.add_middleware(RateLimitMiddleware, max_requests=120, window_seconds=60)
+app.add_middleware(RateLimitMiddleware, max_requests=10000, window_seconds=60)
 
 app.include_router(alerts.router)
 app.include_router(stats.router)
@@ -255,6 +246,7 @@ app.include_router(chat.router)
 app.include_router(audit.router)
 app.include_router(auth.router)
 app.include_router(ingest.router)
+app.include_router(agent.router)
 
 
 @app.get("/")

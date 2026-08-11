@@ -64,31 +64,33 @@ class CodebaseIndex:
     def _crawl(self):
         root_path = Path(self.root)
         count = 0
-        for fpath in root_path.rglob("*"):
-            if any(exc in fpath.parts for exc in self.EXCLUDE_DIRS):
-                continue
-            try:
-                if fpath.is_dir():
+        for root, dirs, files in os.walk(self.root):
+            # Modify dirs in-place to prune excluded directories
+            dirs[:] = [d for d in dirs if d not in self.EXCLUDE_DIRS]
+            
+            for file in files:
+                fpath = Path(root) / file
+                if fpath.suffix not in self.INCLUDE_EXTS:
                     continue
-            except Exception:
-                continue
-            if fpath.suffix not in self.INCLUDE_EXTS:
-                continue
-            if fpath.stat().st_size > self.MAX_FILE_BYTES:
-                continue
-            try:
-                text = fpath.read_text(encoding="utf-8", errors="ignore")
-                rel = str(fpath.relative_to(root_path)).replace("\\", "/")
-                self.files[rel] = text
-                lines = text.splitlines()
-                self.summaries[rel] = "\n".join(lines[:40])
-                for m in re.finditer(r"(?:class|def|function|const|async def)\s+(\w+)", text):
-                    sym = m.group(1)
-                    self.symbols.setdefault(sym, []).append(rel)
-                count += 1
-            except Exception:
-                pass
+                try:
+                    if fpath.stat().st_size > self.MAX_FILE_BYTES:
+                        continue
+                except Exception:
+                    continue
+                try:
+                    text = fpath.read_text(encoding="utf-8", errors="ignore")
+                    rel = str(fpath.relative_to(root_path)).replace("\\", "/")
+                    self.files[rel] = text
+                    lines = text.splitlines()
+                    self.summaries[rel] = "\n".join(lines[:40])
+                    for m in re.finditer(r"(?:class|def|function|const|async def)\s+(\w+)", text):
+                        sym = m.group(1)
+                        self.symbols.setdefault(sym, []).append(rel)
+                    count += 1
+                except Exception:
+                    pass
         logger.info(f"[CodebaseIndex] Indexed {count} files from {self.root}")
+
 
     def search(self, query: str, top_k: int = 5) -> list[tuple[str, str]]:
         tokens = set(re.findall(r"\w+", query.lower()))

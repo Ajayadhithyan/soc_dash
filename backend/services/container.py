@@ -21,6 +21,7 @@ from backend.services.threat_intel import ThreatIntelService
 from backend.services.playbook_engine import PlaybookEngine
 from backend.services.experiment_manager import ExperimentManager
 from backend.services.auth import AuthService
+from backend.services.agent_auth import AgentAuthService
 
 
 class AppContainer:
@@ -39,6 +40,7 @@ class AppContainer:
         self._playbook_engine: Optional[PlaybookEngine] = None
         self._chat_assistant: Optional[ChatAssistant] = None
         self._auth_service: Optional[AuthService] = None
+        self._agent_auth: Optional[AgentAuthService] = None
 
     async def start(self):
         self._mongo_client = AsyncIOMotorClient(config.MONGODB_URI)
@@ -61,6 +63,7 @@ class AppContainer:
         self._experiment_manager = ExperimentManager()
         self._chat_assistant = ChatAssistant(self._db, config.OPENCODE_API_KEY)
         self._auth_service = AuthService(self._db)
+        self._agent_auth = AgentAuthService(self._db)
 
     async def shutdown(self):
         if self._mongo_client:
@@ -119,6 +122,10 @@ class AppContainer:
         return self._auth_service
 
     @property
+    def agent_auth(self) -> AgentAuthService:
+        return self._agent_auth
+
+    @property
     def experiment_manager(self) -> ExperimentManager:
         return self._experiment_manager
 
@@ -136,6 +143,10 @@ def get_db(container: AppContainer = Depends(get_container)):
 
 def get_ws_manager(container: AppContainer = Depends(get_container)):
     return container.websocket_manager
+
+
+def get_agent_auth(container: AppContainer = Depends(get_container)):
+    return container.agent_auth
 
 
 def get_anomaly_detector(container: AppContainer = Depends(get_container)):
