@@ -2,6 +2,39 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Shield, RefreshCw, Cpu, Sun, Moon, Menu, X, LogOut } from 'lucide-react';
 import type { SystemHealth } from '../types';
 
+function useNow(intervalMs = 1000): Date {
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const timer = setInterval(() => setNow(new Date()), intervalMs);
+    return () => clearInterval(timer);
+  }, [intervalMs]);
+  return now;
+}
+
+function HeaderClock() {
+  const now = useNow();
+  return (
+    <>
+      <div className="text-xs text-zinc-500">
+        {now.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}
+      </div>
+      <div className="text-sm font-semibold text-zinc-300 font-mono">
+        {now.toLocaleTimeString('en-US', { hour12: false })}
+      </div>
+    </>
+  );
+}
+
+function HeaderClockText() {
+  const now = useNow();
+  return (
+    <>
+      {now.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })} —{' '}
+      {now.toLocaleTimeString('en-US', { hour12: false })}
+    </>
+  );
+}
+
 interface DashboardHeaderProps {
   wsStatus: string;
   systemHealth: SystemHealth | null;
@@ -13,7 +46,6 @@ interface DashboardHeaderProps {
 }
 
 function DashboardHeader({ wsStatus, systemHealth, onRefresh, onTrainModel, onLogout, isSyntheticEnabled, onToggleSynthetic }: DashboardHeaderProps) {
-  const [time, setTime] = useState(new Date());
   const [isTraining, setIsTraining] = useState(false);
   const [feedback, setFeedback] = useState<'success' | 'error' | null>(null);
   const [isDark, setIsDark] = useState(() => {
@@ -25,19 +57,6 @@ function DashboardHeader({ wsStatus, systemHealth, onRefresh, onTrainModel, onLo
   useEffect(() => {
     document.documentElement.classList.toggle('light-theme', !isDark);
   }, [isDark]);
-
-  useEffect(() => {
-    const timer = setInterval(() => setTime(new Date()), 1000);
-    return () => clearInterval(timer);
-  }, []);
-
-  const formatTime = (date: Date): string => {
-    return date.toLocaleTimeString('en-US', { hour12: false });
-  };
-
-  const formatDate = (date: Date): string => {
-    return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
-  };
 
   const toggleTheme = useCallback(() => {
     setIsDark((prev) => {
@@ -151,8 +170,7 @@ function DashboardHeader({ wsStatus, systemHealth, onRefresh, onTrainModel, onLo
       </div>
 
       <div className="hidden md:flex items-center gap-3 text-right">
-        <div className="text-xs text-zinc-500">{formatDate(time)}</div>
-        <div className="text-sm font-semibold text-zinc-300 font-mono">{formatTime(time)}</div>
+        <HeaderClock />
       </div>
 
       <button
@@ -202,7 +220,7 @@ function DashboardHeader({ wsStatus, systemHealth, onRefresh, onTrainModel, onLo
             )}
           </div>
           <div className="text-xs text-zinc-500 font-mono text-center">
-            {formatDate(time)} — {formatTime(time)}
+            <HeaderClockText />
           </div>
         </div>
       )}

@@ -16,6 +16,28 @@ export default defineConfig({
       }
     }
   },
+  build: {
+    target: 'es2020',
+    cssCodeSplit: true,
+    sourcemap: false,
+    minify: 'esbuild',
+    rollupOptions: {
+      output: {
+        manualChunks(id: string) {
+          if (!id.includes('node_modules')) return;
+          if (id.includes('node_modules/react-router') || id.includes('node_modules/react-dom') || id.includes('node_modules/react/')) {
+            return 'react-vendor';
+          }
+          if (id.includes('node_modules/axios')) {
+            return 'axios';
+          }
+          if (id.includes('node_modules/recharts')) {
+            return 'charts';
+          }
+        },
+      },
+    },
+  },
   test: {
     globals: true,
     environment: 'jsdom',

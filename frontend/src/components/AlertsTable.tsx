@@ -5,6 +5,64 @@ import { AlertTableSkeleton } from './LoadingSkeleton';
 
 import type { AlertEvent, SortField, SortOrder } from '../types';
 
+function getSeverityBadge(severity: string): string {
+  switch (severity) {
+    case 'CRITICAL':
+      return 'bg-rose-500/10 border border-rose-500/20 text-rose-400';
+    case 'HIGH':
+      return 'bg-amber-500/10 border border-amber-500/20 text-amber-400';
+    case 'MEDIUM':
+      return 'bg-blue-500/10 border border-blue-500/20 text-blue-400';
+    case 'LOW':
+      return 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-400';
+    default:
+      return 'bg-zinc-800 border border-zinc-700 text-zinc-400';
+  }
+}
+
+interface AlertRowProps {
+  alert: AlertEvent;
+  isSelected: boolean;
+  onAlertSelect: (alert: AlertEvent) => void;
+}
+
+const AlertRow = memo(function AlertRow({ alert, isSelected, onAlertSelect }: AlertRowProps) {
+  const isRecent = alert.isNew;
+  return (
+    <tr
+      onClick={() => onAlertSelect(alert)}
+      className={`cursor-pointer border-b border-zinc-800/40 transition-all hover:bg-zinc-800/20 ${
+        isSelected ? 'bg-zinc-800/40 border-l-2 border-l-emerald-500 text-white font-medium' : 'text-zinc-300'
+      }`}
+    >
+      <td className="py-3 px-3 text-zinc-400">
+        <span className="flex items-center gap-1.5">
+          {isRecent && <span className="w-1.5 h-1.5 rounded-full bg-blue-500 inline-block animate-pulse" title="New Alert" />}
+          {alert.severity === 'CRITICAL' && (
+            <span className="w-1 h-1 rounded-full bg-rose-500 inline-block animate-pulse" />
+          )}
+          {alert.timestamp}
+        </span>
+      </td>
+      <td className="py-3 px-3">
+        <span className={`px-2 py-0.5 rounded text-[9px] font-semibold uppercase tracking-wider ${getSeverityBadge(alert.severity)}`}>
+          {alert.severity}
+        </span>
+      </td>
+      <td className="py-3 px-3 font-semibold text-zinc-200">{alert.event_type}</td>
+      <td className="py-3 px-3 text-blue-400 font-semibold">{alert.src_ip}</td>
+      <td className="py-3 px-3 text-zinc-400">{alert.dest_ip}</td>
+      <td className="py-3 px-3 text-right font-bold">
+        {(riskScore => (
+          <span className={riskScore > 75 ? 'text-rose-400' : riskScore > 50 ? 'text-amber-400' : 'text-emerald-400'}>
+            {riskScore}
+          </span>
+        ))(alert.risk_score ?? 0)}
+      </td>
+    </tr>
+  );
+});
+
 interface AlertsTableProps {
   alerts: AlertEvent[];
   total: number;
@@ -30,7 +88,6 @@ function AlertsTable({
 }: AlertsTableProps) {
   const [sortField, setSortField] = useState<SortField>('timestamp');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
-  const [hoveredRow, setHoveredRow] = useState<string | null>(null);
 
   const severities = ['ALL', 'CRITICAL', 'HIGH', 'MEDIUM', 'LOW'];
   const eventTypes = [
@@ -41,21 +98,6 @@ function AlertsTable({
     { label: 'PORT SCAN', value: 'PORT_SCAN' },
     { label: 'FAILED LOGIN', value: 'FAILED_LOGIN' },
   ];
-
-  const getSeverityBadge = useCallback((severity: string) => {
-    switch (severity) {
-      case 'CRITICAL':
-        return 'bg-rose-500/10 border border-rose-500/20 text-rose-400';
-      case 'HIGH':
-        return 'bg-amber-500/10 border border-amber-500/20 text-amber-400';
-      case 'MEDIUM':
-        return 'bg-blue-500/10 border border-blue-500/20 text-blue-400';
-      case 'LOW':
-        return 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-400';
-      default:
-        return 'bg-zinc-800 border border-zinc-700 text-zinc-400';
-    }
-  }, []);
 
   const handleSort = useCallback((field: SortField) => {
     setSortField((prev) => {
@@ -198,47 +240,14 @@ function AlertsTable({
           </thead>
           <tbody>
             {sortedAlerts.length > 0 ? (
-              sortedAlerts.map((alert) => {
-                const isSelected = selectedAlertId === alert.id;
-                const isRecent = alert.isNew;
-                const isHovered = hoveredRow === alert.id;
-                return (
-                  <tr
-                    key={alert.id}
-                    onClick={() => onAlertSelect(alert)}
-                    onMouseEnter={() => setHoveredRow(alert.id)}
-                    onMouseLeave={() => setHoveredRow(null)}
-                    className={`cursor-pointer border-b border-zinc-800/40 transition-all ${
-                      isSelected ? 'bg-zinc-800/40 border-l-2 border-l-emerald-500 text-white font-medium' : isHovered ? 'bg-zinc-800/20' : 'text-zinc-300'
-                    }`}
-                  >
-                    <td className="py-3 px-3 text-zinc-400">
-                      <span className="flex items-center gap-1.5">
-                        {isRecent && <span className="w-1.5 h-1.5 rounded-full bg-blue-500 inline-block animate-pulse" title="New Alert" />}
-                        {alert.severity === 'CRITICAL' && (
-                          <span className="w-1 h-1 rounded-full bg-rose-500 inline-block animate-pulse" />
-                        )}
-                        {alert.timestamp}
-                      </span>
-                    </td>
-                    <td className="py-3 px-3">
-                      <span className={`px-2 py-0.5 rounded text-[9px] font-semibold uppercase tracking-wider ${getSeverityBadge(alert.severity)}`}>
-                        {alert.severity}
-                      </span>
-                    </td>
-                    <td className="py-3 px-3 font-semibold text-zinc-200">{alert.event_type}</td>
-                    <td className="py-3 px-3 text-blue-400 font-semibold">{alert.src_ip}</td>
-                    <td className="py-3 px-3 text-zinc-400">{alert.dest_ip}</td>
-                    <td className="py-3 px-3 text-right font-bold">
-                      {(riskScore => (
-                        <span className={riskScore > 75 ? 'text-rose-400' : riskScore > 50 ? 'text-amber-400' : 'text-emerald-400'}>
-                          {riskScore}
-                        </span>
-                      ))(alert.risk_score ?? 0)}
-                    </td>
-                  </tr>
-                );
-              })
+              sortedAlerts.map((alert) => (
+                <AlertRow
+                  key={alert.id}
+                  alert={alert}
+                  isSelected={selectedAlertId === alert.id}
+                  onAlertSelect={onAlertSelect}
+                />
+              ))
             ) : (
               <tr>
                 <td colSpan={6} className="py-12 text-center text-zinc-500 text-xs">No security alerts matching search query.</td>

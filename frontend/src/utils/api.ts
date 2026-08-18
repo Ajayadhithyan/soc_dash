@@ -1,4 +1,4 @@
-import axios from 'axios';
+import axios, { type AxiosRequestConfig } from 'axios';
 import type {
   StatsOverview,
   GeoData,
@@ -67,49 +67,83 @@ export const setAuthToken = (token: string | null) => {
   }
 };
 
+// ---- Request caching / dedup ---------------------------------------------
+// Stats endpoints are fetched in bursts (WebSocket-triggered refreshes, manual
+// refresh, tab switches, StrictMode double-effects). A short TTL + in-flight
+// promise dedup collapses concurrent duplicate GETs into a single network call.
+interface CacheEntry {
+  data: unknown;
+  expiresAt: number;
+}
+
+const GET_TTL_MS = 1500;
+const getCache = new Map<string, CacheEntry>();
+const inflight = new Map<string, Promise<unknown>>();
+
+function buildKey(url: string, params?: unknown): string {
+  return `${url}${JSON.stringify(params ?? {})}`;
+}
+
+export const cachedGet = async <T>(url: string, config?: AxiosRequestConfig): Promise<T> => {
+  const key = buildKey(url, config?.params);
+
+  const pending = inflight.get(key);
+  if (pending) return pending as Promise<T>;
+
+  const hit = getCache.get(key);
+  if (hit && hit.expiresAt > Date.now()) return hit.data as T;
+
+  const request = api
+    .get<T>(url, config)
+    .then((response) => {
+      getCache.set(key, { data: response.data, expiresAt: Date.now() + GET_TTL_MS });
+      inflight.delete(key);
+      return response.data;
+    })
+    .catch((error) => {
+      inflight.delete(key);
+      throw error;
+    });
+
+  inflight.set(key, request);
+  return request;
+};
+
 export const login = async (username: string, password: string): Promise<{ access_token: string }> => {
   const response = await api.post('/api/auth/login', { username, password });
   return response.data;
 };
 
 export const getOverview = async (): Promise<StatsOverview> => {
-  const response = await api.get('/api/stats/overview');
-  return response.data;
+  return cachedGet<StatsOverview>('/api/stats/overview');
 };
 
 export const getSeverityDistribution = async (): Promise<SeverityData> => {
-  const response = await api.get('/api/stats/severity');
-  return response.data;
+  return cachedGet<SeverityData>('/api/stats/severity');
 };
 
 export const getEventTypes = async (): Promise<{ event_types: EventTypeDistribution[] }> => {
-  const response = await api.get('/api/stats/event-types');
-  return response.data;
+  return cachedGet('/api/stats/event-types');
 };
 
 export const getTimeline = async (range = '6h'): Promise<TimelineData> => {
-  const response = await api.get('/api/stats/timeline', { params: { range } });
-  return response.data;
+  return cachedGet<TimelineData>('/api/stats/timeline', { params: { range } });
 };
 
 export const getTopSources = async (): Promise<{ sources: TopSource[] }> => {
-  const response = await api.get('/api/stats/top-sources');
-  return response.data;
+  return cachedGet('/api/stats/top-sources');
 };
 
 export const getGeoData = async (): Promise<{ geo_threats: GeoData[] }> => {
-  const response = await api.get('/api/stats/geo');
-  return response.data;
+  return cachedGet('/api/stats/geo');
 };
 
 export const getRiskDistribution = async (): Promise<{ risk_distribution: RiskDistribution[] }> => {
-  const response = await api.get('/api/stats/risk-distribution');
-  return response.data;
+  return cachedGet('/api/stats/risk-distribution');
 };
 
 export const getMitreHeatmap = async (): Promise<MitreHeatmapData> => {
-  const response = await api.get('/api/stats/mitre');
-  return response.data;
+  return cachedGet<MitreHeatmapData>('/api/stats/mitre');
 };
 
 export const getAlerts = async (params: Record<string, unknown> = {}): Promise<PaginatedResponse<AlertEvent>> => {
@@ -157,8 +191,7 @@ export const getAuditLogs = async (limit = 50): Promise<{ audit_logs: AuditLog[]
 };
 
 export const checkHealth = async (): Promise<SystemHealth> => {
-  const response = await api.get('/api/health');
-  return response.data;
+  return cachedGet<SystemHealth>('/api/health');
 };
 
 export function exportAlertsToCsv(alerts: AlertEvent[]) {
