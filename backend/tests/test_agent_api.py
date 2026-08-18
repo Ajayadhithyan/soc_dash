@@ -186,7 +186,7 @@ async def test_endpoints_list_success(app, mock_env):
             "memory_percent": 30.0,
             "disk_percent": 55.0,
             "ip": "10.0.0.5",
-            "last_seen": "2026-08-06T12:00:00+00:00",
+            "last_seen": "2026-08-18T10:00:00+00:00",
         },
         {
             "agent_id": "endpoint-02",
